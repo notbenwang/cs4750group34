@@ -4,6 +4,7 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
+<h1>Group34 Project Name</h1>
 {% if user.is_authenticated %}
 Hi {{ user.username }}!
 <form action="{% url 'logout' %}" method="post">
@@ -13,5 +14,7 @@ Hi {{ user.username }}!
 {% else %}
 <p>You are not logged in</p>
 <a href="{% url 'login' %}">Log In</a>
+<p>Don't have an account?</p>
+<a href="{% url 'signup' %}">Sign up here</a>
 {% endif %}
 {% endblock %}
