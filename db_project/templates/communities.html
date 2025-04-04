@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>All Communities</title>
+    </head>
+    <body>
+        <h1>List of All Communities</h1>
+        <a href="">Create a community</a>
+        {% for community in communities %}
+        <p>
+            <h4>{{ community.name }}</h4>
+        </p>
+        {% empty %}
+        <tr>
+            No communities found.
+        </tr>
+        {% endfor %}
+        <br/>
+        <a href="{% url 'home' %}">Back</a>
+    </body>
+</html>
