@@ -1,0 +1,11 @@
+<h1>Edit Profile</h1>
+
+Username: {{user_profile.username}}
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Changes</button>
+</form>
+<a href="{% url 'profile' %}">Cancel</a>
+<br/>
+<a href="{% url 'home' %}">Home</a>
