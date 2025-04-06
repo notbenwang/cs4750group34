@@ -35,22 +35,17 @@ def community_home(request, community_name):
     community_interaction = Usercommunity.objects.filter(community_id=community.community_id, user_id = appuser.user_id)
     joined = True if community_interaction else False
     
-    changes = False
     if request.method == "POST":
         if joined:
             if community_interaction[0].role == "Owner":
                 messages.error(request, "Cannot Leave Community you own. Designate ownership to another member before leaving.")
-            else:
-                community_interaction[0].delete()
-                changes = True
-        else:
+                return render(request, 'communities/community_home.html', {'community' : community, "joined" : joined})
+            community_interaction[0].delete()
+        if not joined:
             new_status = Usercommunity(user_id=appuser.user_id, community_id=community.community_id, role="Member")
             new_status.save()
-            changes = True
-        
-    if changes:
-        joined = not joined
-        community = get_object_or_404(Community, name=community_name)
+        return redirect('community_home', community_name=community_name)
+    
     return render(request, 'communities/community_home.html', {'community' : community, "joined" : joined})
 
 def profile(request):
