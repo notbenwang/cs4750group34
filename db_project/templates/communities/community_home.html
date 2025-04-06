@@ -1,4 +1,19 @@
 <h1>Welcome to {{community.name}}</h1>
+{% if messages %}
+    <ul class="messages">
+    {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+<form method="post">
+    {% csrf_token %}
+    {% if joined %}
+    <button type="submit">Leave</button>
+    {% else %}
+    <button type="submit">Join Community</button>
+    {% endif %}
+</form>
 <p>
     Member Count: {{community.member_count}}
 </p>    
@@ -7,5 +22,3 @@
 </p>
 
 <a href="{% url 'community_list' %}">See All Communities</a>
-<br/>
-<a href="{% url 'home' %}">Home</a>

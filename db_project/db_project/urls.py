@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
-from db_project.views import community_list, view_community_home, profile, edit_profile
+from db_project.views import community_list, community_home, profile, edit_profile
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("accounts/", include("accounts.urls")),
@@ -27,5 +27,5 @@ urlpatterns = [
     path("profile/", profile, name="profile"),
     path("profile/edit", edit_profile, name="edit_profile"),
     path("communities/create", community_list, name="create_community"),
-    path("communities/<str:community_name>", view_community_home, name="community_home")
+    path("communities/<str:community_name>", community_home, name="community_home"),
 ]
