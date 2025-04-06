@@ -17,10 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
-
+from db_project.views import community_list, community_home, profile, edit_profile, create_community
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("accounts/", include("accounts.urls")),
     path("accounts/", include("django.contrib.auth.urls")),
-    path("", TemplateView.as_view(template_name="home.html"), name="home")
+    path("", TemplateView.as_view(template_name="home.html"), name="home"),
+    path("communities/", community_list, name="community_list"),
+    path("profile/", profile, name="profile"),
+    path("profile/edit", edit_profile, name="edit_profile"),
+    path("communities/create", create_community, name="create_community"),
+    path("communities/<str:community_name>", community_home, name="community_home"),
 ]
