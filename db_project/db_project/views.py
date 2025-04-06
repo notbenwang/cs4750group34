@@ -2,6 +2,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from db_project.forms import ProfileEditForm, CreateCommunityForm
 from db_project.models import Community, Appuser, Usercommunity
 from django.contrib import messages
+from urllib.parse import quote
+
+def get_user_id_from_auth_id(user_id):
+    return Appuser.objects.get(auth_id = user_id).user_id
 
 def community_list(request):
     if not request.user.is_authenticated:
@@ -12,8 +16,21 @@ def community_list(request):
 def create_community(request):
     if not request.user.is_authenticated:
         return redirect("home")
-
-    return render(request, 'communities/create_community.html')
+    new_community = Community()
+    
+    if request.method == "POST":
+        name =  request.POST.get('name')
+        about = request.POST.get('about')
+        new_community = Community(name=name, about=about, member_count=0)
+        form = CreateCommunityForm(request.POST, instance=new_community)
+        if form.is_valid():
+            form.save()
+            creator_role = Usercommunity(user_id = get_user_id_from_auth_id(request.user.id), community_id=new_community.community_id, role="Owner")
+            creator_role.save()
+            return redirect('community_home', community_name=name)
+    else:
+        form = CreateCommunityForm(instance=new_community)
+    return render(request, 'communities/create_community.html', {'form' : form})
 
 def update_community_status(request, community_name):
     if not request.user.is_authenticated:

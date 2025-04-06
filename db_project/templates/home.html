@@ -10,7 +10,7 @@ Hi {{ user.username }}! <a href="{% url 'profile' %}">View Profile</a>
 <br/>
 <a href="{% url 'community_list' %}">View communities</a>
 <br/>
-<a href="">Create a community</a>
+<a href="{% url 'create_community' %}">Create a community</a>
 <form action="{% url 'logout' %}" method="post">
     {% csrf_token %}
     <button type="submit">Log Out</button>
