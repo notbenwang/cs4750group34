@@ -32,20 +32,6 @@ def create_community(request):
         form = CreateCommunityForm(instance=new_community)
     return render(request, 'communities/create_community.html', {'form' : form})
 
-def update_community_status(request, community_name):
-    if not request.user.is_authenticated:
-        return redirect("home")
-    
-    community = get_object_or_404(Community, name=community_name)
-    joined = False
-    if request.method == "POST":
-        appuser = Appuser.objects.get(auth_id = request.user.id)
-        community_interaction = Usercommunity.objects.get(community_name=community_name, user_id = appuser.user_id)
-        joined = True if community_interaction else False
-        print(joined)
-        joined = not joined
-    return render(request, 'communities/community_home.html', {'community' : community, "joined" : joined})
-
 def community_home(request, community_name):
     community = get_object_or_404(Community, name=community_name)
     appuser = Appuser.objects.get(auth_id = request.user.id)
