@@ -9,7 +9,7 @@
         <a href="">Create a community</a>
         {% for community in communities %}
         <p>
-            <h4>{{ community.name }}</h4>
+            <a href="{% url 'community_home' community.name %}">{{community.name}}</a>
         </p>
         {% empty %}
         <tr>

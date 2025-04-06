@@ -1,0 +1,11 @@
+<h1>Welcome to {{community.name}}</h1>
+<p>
+    Member Count: {{community.member_count}}
+</p>    
+<p>
+    About: {{community.about}}
+</p>
+
+<a href="{% url 'community_list' %}">See All Communities</a>
+<br/>
+<a href="{% url 'home' %}">Home</a>

@@ -1,12 +1,33 @@
-from django.shortcuts import render, redirect
-from db_project.forms import ProfileEditForm
-from db_project.models import Community, Appuser
+from django.shortcuts import render, redirect, get_object_or_404
+from db_project.forms import ProfileEditForm, CreateCommunityForm
+from db_project.models import Community, Appuser, Usercommunity
 
 def community_list(request):
     if not request.user.is_authenticated:
         return redirect("home")
     communities = Community.objects.all().order_by('name')
-    return render(request, 'communities.html', {'communities' : communities})
+    return render(request, 'communities/communities.html', {'communities' : communities})
+
+def create_community(request):
+    if not request.user.is_authenticated:
+        return redirect("home")
+
+    return render(request, 'communities/create_community.html')
+
+def join_community(request, community_id):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    if request.method == "POST":
+        appuser = Appuser.objects.get(auth_id = request.user.id)
+        community_interaction = Usercommunity.get(community_id=community_id, user_id = appuser.user_id)
+        if community_interaction:
+            print("delete interaction")
+        else:
+            print("add interaction")
+
+def view_community_home(request, community_name):
+    community = get_object_or_404(Community, name=community_name)
+    return render(request, 'communities/community_home.html', {'community' : community})
 
 def profile(request):
     user = request.user
