@@ -1,0 +1,7 @@
+<h1>{{ post.title }}</h1>
+<p>Community: <a href="{% url 'community_home' community_name=community.name %}">{{ community.name }}</a></p>
+<p>{{ post.content }}</p>
+<small>Posted on: {{ post.creation_date }}</small>
+<p>
+    <a href="{% url 'community_home' community_name=community.name %}">Back to {{ community.name }}</a>
+</p>

@@ -72,13 +72,18 @@ def create_post(request, community_name):
 
     return render(request, "posts/create_post.html", {"community": community})
 
+def post_detail(request, community_name, post_id):
+    community = get_object_or_404(Community, name=community_name)
+    post = get_object_or_404(Posts, post_id=post_id, community=community)
+    return render(request, 'posts/post_detail.html', {'post': post, 'community': community})
+
 def community_home(request, community_name):
     community = get_object_or_404(Community, name=community_name)
     appuser = Appuser.objects.get(auth_id = request.user.id)
     community_interaction = Usercommunity.objects.filter(community_id=community.community_id, user_id = appuser.user_id)
     joined = True if community_interaction else False
     posts = Posts.objects.filter(community=community).order_by('-creation_date')
-    
+
     if request.method == "POST":
         if joined:
             if community_interaction[0].role == "Owner":
