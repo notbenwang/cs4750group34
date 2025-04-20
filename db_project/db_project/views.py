@@ -75,7 +75,34 @@ def create_post(request, community_name):
 def post_detail(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
     post = get_object_or_404(Posts, post_id=post_id, community=community)
-    return render(request, 'posts/post_detail.html', {'post': post, 'community': community})
+
+    is_owner = False
+    if request.user.is_authenticated:
+        try:
+            app_user = Appuser.objects.get(auth_id=request.user.id)
+            if app_user.user_id == post.user_id:
+                is_owner = True
+        except Appuser.DoesNotExist:
+            pass
+
+    return render(request, 'posts/post_detail.html', {'post': post, 'community': community, 'is_owner': is_owner})
+
+def delete_post(request, community_name, post_id):
+    community = get_object_or_404(Community, name=community_name)
+    post = get_object_or_404(Posts, post_id=post_id, community=community)
+
+    if request.user.is_authenticated:
+        try:
+            app_user = Appuser.objects.get(auth_id=request.user.id)
+            if app_user.user_id == post.user_id:
+                post.delete()
+                messages.success(request, "Post deleted successfully.")
+                return redirect('community_home', community_name=community_name)
+        except Appuser.DoesNotExist:
+            pass
+
+    messages.error(request, "You are not authorized to delete this post.")
+    return redirect('post_detail', community_name=community_name, post_id=post_id)
 
 def community_home(request, community_name):
     community = get_object_or_404(Community, name=community_name)
