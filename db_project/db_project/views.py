@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from db_project.forms import ProfileEditForm, CreateCommunityForm
-from db_project.models import Community, Appuser, Usercommunity
+from db_project.models import Community, Posts, Appuser, Usercommunity
 from django.contrib import messages
+from django.utils import timezone
 from urllib.parse import quote
 
 def get_user_id_from_auth_id(user_id):
@@ -32,11 +33,51 @@ def create_community(request):
         form = CreateCommunityForm(instance=new_community)
     return render(request, 'communities/create_community.html', {'form' : form})
 
+def community_posts(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    
+    community = get_object_or_404(Community, name=community_name)
+    
+    posts = Posts.objects.filter(community=community).order_by('-creation_date')
+    
+    return render(request, 'communities/community_home.html', {
+        'community': community,
+        'posts': posts
+    })
+
+def create_post(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    appuser = get_object_or_404(Appuser, pk=appuser_id)
+    community = get_object_or_404(Community, name=community_name)
+
+    if request.method == "POST":
+        title = request.POST.get("title")
+        content = request.POST.get("content")
+
+        new_post = Posts(
+            user=appuser,
+            community=community,
+            title=title,
+            content=content,
+            creation_date=timezone.now(),
+            upvotes=0,
+            downvotes=0
+        )
+        new_post.save()
+        return redirect("community_home", community_name=community.name)
+
+    return render(request, "posts/create_post.html", {"community": community})
+
 def community_home(request, community_name):
     community = get_object_or_404(Community, name=community_name)
     appuser = Appuser.objects.get(auth_id = request.user.id)
     community_interaction = Usercommunity.objects.filter(community_id=community.community_id, user_id = appuser.user_id)
     joined = True if community_interaction else False
+    posts = Posts.objects.filter(community=community).order_by('-creation_date')
     
     if request.method == "POST":
         if joined:
@@ -49,7 +90,7 @@ def community_home(request, community_name):
             new_status.save()
         return redirect('community_home', community_name=community_name)
     
-    return render(request, 'communities/community_home.html', {'community' : community, "joined" : joined})
+    return render(request, 'communities/community_home.html', {'community': community, "joined": joined, 'posts': posts})
 
 def profile(request):
     user = request.user

@@ -1,24 +1,40 @@
 <h1>Welcome to {{community.name}}</h1>
 {% if messages %}
-    <ul class="messages">
-    {% for message in messages %}
-      <li class="{{ message.tags }}">{{ message }}</li>
-    {% endfor %}
-  </ul>
+<ul class="messages">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
 {% endif %}
 <form method="post">
-    {% csrf_token %}
-    {% if joined %}
-    <button type="submit">Leave</button>
-    {% else %}
-    <button type="submit">Join Community</button>
-    {% endif %}
+  {% csrf_token %}
+  {% if joined %}
+  <button type="submit">Leave</button>
+  {% else %}
+  <button type="submit">Join Community</button>
+  {% endif %}
 </form>
 <p>
-    Member Count: {{community.member_count}}
-</p>    
+  Member Count: {{community.member_count}}
+</p>
 <p>
-    About: {{community.about}}
+  About: {{community.about}}
+<p>
+
+<h2>Posts:</h2>
+{% if posts %}
+{% for post in posts %}
+<div>
+  <h3>{{ post.title }}</h3>
+  <p>{{ post.content }}</p>
+  <small>Posted on: {{ post.creation_date }}</small>
+</div>
+{% endfor %}
+{% else %}
+<p>No posts yet in this community.</p>
+{% endif %}
+
+<a href="{% url 'create_post' community_name=community.name %}">Create Post</a>
 </p>
 
 <a href="{% url 'community_list' %}">See All Communities</a>
