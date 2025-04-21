@@ -175,10 +175,18 @@ class DjangoSession(models.Model):
 
 
 class PostInteraction(models.Model):
+    UPVOTE = 'upvote'
+    DOWNVOTE = 'downvote'
+
+    INTERACTION_CHOICES = [
+        (UPVOTE, 'Upvote'),
+        (DOWNVOTE, 'Downvote'),
+    ]
+
     pk = models.CompositePrimaryKey('user_id', 'post_id')
     user = models.ForeignKey(Appuser, models.DO_NOTHING)
     post = models.ForeignKey('Posts', models.DO_NOTHING)
-    interaction_type = models.CharField(max_length=50, blank=True, null=True)
+    interaction_type = models.CharField(max_length=50, choices=INTERACTION_CHOICES, blank=True, null=True)
 
     class Meta:
         managed = False

@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Count, Q
+from django.db import IntegrityError
 from db_project.forms import ProfileEditForm, CreateCommunityForm
-from db_project.models import Community, Posts, Appuser, Usercommunity
+from db_project.models import Community, Posts, Appuser, Usercommunity, PostInteraction
 from django.contrib import messages
 from django.utils import timezone
 from urllib.parse import quote
@@ -84,6 +86,10 @@ def post_detail(request, community_name, post_id):
                 is_owner = True
         except Appuser.DoesNotExist:
             pass
+    
+    upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
+    downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
+    post.score = upvotes - downvotes
 
     return render(request, 'posts/post_detail.html', {'post': post, 'community': community, 'is_owner': is_owner})
 
@@ -106,23 +112,47 @@ def delete_post(request, community_name, post_id):
 
 def community_home(request, community_name):
     community = get_object_or_404(Community, name=community_name)
-    appuser = Appuser.objects.get(auth_id = request.user.id)
-    community_interaction = Usercommunity.objects.filter(community_id=community.community_id, user_id = appuser.user_id)
+    appuser = Appuser.objects.get(auth_id=request.user.id)
+
+    community_interaction = Usercommunity.objects.filter(
+        community_id=community.community_id, 
+        user_id=appuser.user_id
+    )
     joined = True if community_interaction else False
-    posts = Posts.objects.filter(community=community).order_by('-creation_date')
 
     if request.method == "POST":
         if joined:
             if community_interaction[0].role == "Owner":
-                messages.error(request, "Cannot Leave Community you own. Designate ownership to another member before leaving.")
-                return render(request, 'communities/community_home.html', {'community' : community, "joined" : joined})
+                messages.error(
+                    request, 
+                    "Cannot leave a community you own. Designate ownership to another member before leaving."
+                )
+                return render(request, 'communities/community_home.html', {
+                    'community': community, 
+                    'joined': joined,
+                    'posts': []
+                })
             community_interaction[0].delete()
-        if not joined:
-            new_status = Usercommunity(user_id=appuser.user_id, community_id=community.community_id, role="Member")
-            new_status.save()
+        else:
+            Usercommunity.objects.create(
+                user_id=appuser.user_id, 
+                community_id=community.community_id, 
+                role="Member"
+            )
         return redirect('community_home', community_name=community_name)
-    
-    return render(request, 'communities/community_home.html', {'community': community, "joined": joined, 'posts': posts})
+
+    posts = Posts.objects.filter(community=community).order_by('-creation_date')
+
+    for post in posts:
+        upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
+        downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
+        post.score = upvotes - downvotes
+
+    return render(request, 'communities/community_home.html', {
+        'community': community,
+        'joined': joined,
+        'posts': posts
+    })
 
 def profile(request):
     user = request.user
@@ -149,3 +179,44 @@ def edit_profile(request):
         form = ProfileEditForm(instance=appuser)
 
     return render(request, 'profile/edit_profile.html', {'user_profile' : appuser, 'form' : form})
+
+def get_vote_counts(post_id):
+    upvotes = PostInteraction.objects.filter(
+        post_id=post_id,
+        interaction_type='upvote'
+    ).count()
+
+    downvotes = PostInteraction.objects.filter(
+        post_id=post_id,
+        interaction_type='downvote'
+    ).count()
+
+    return {
+        'upvotes': upvotes,
+        'downvotes': downvotes,
+        'score': upvotes - downvotes
+    }
+
+def handle_vote(user, post, vote_type):
+    try:
+        obj, created = PostInteraction.objects.update_or_create(
+            user=user,
+            post=post,
+            defaults={'interaction_type': vote_type}
+        )
+        return "Vote updated" if not created else "Vote recorded"
+    except IntegrityError:
+        return "Vote failed"
+
+def vote_post(request, post_id):
+    if request.method == "POST" and request.user.is_authenticated:
+        vote_type = request.POST.get("vote_type")
+        post = get_object_or_404(Posts, pk=post_id)
+
+        PostInteraction.objects.update_or_create(
+            user=Appuser.objects.get(auth_id=request.user.id),
+            post=post,
+            defaults={'interaction_type': vote_type}
+        )
+
+    return redirect(request.META.get('HTTP_REFERER', '/'))

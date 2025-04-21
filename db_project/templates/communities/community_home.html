@@ -30,6 +30,14 @@
       <h3>{{ post.title }}</h3>
       <p>{{ post.content|truncatechars:100 }}</p>
       <small>Posted on: {{ post.creation_date }}</small>
+      <div class="vote-box">
+        <form method="post" action="{% url 'vote' post_id=post.post_id %}">
+          {% csrf_token %}
+          <button name="vote_type" value="upvote" type="submit">⬆️</button>
+          <span>{{ post.score }}</span>
+          <button name="vote_type" value="downvote" type="submit">⬇️</button>
+        </form>
+      </div>
     </a>
   </div>
   {% endfor %}
@@ -73,5 +81,26 @@
 
   .post-box small {
     color: #777;
+  }
+
+  .vote-box {
+    margin-top: 10px;
+  }
+
+  .vote-box form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .vote-box button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  .vote-box span {
+    font-weight: bold;
   }
 </style>
