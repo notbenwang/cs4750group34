@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">Approve Join Requests for {{ group.name }}</div>
+                <div class="card-body">
+                    {% if join_requests %}
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ form|crispy }}
+                            <button type="submit" class="btn btn-primary">Approve Selected</button>
+                        </form>
+                        <hr>
+                        <h5>Pending Requests:</h5>
+                        <ul class="list-group">
+                            {% for request in join_requests %}
+                                <li class="list-group-item">
+                                    <strong>{{ request.username }}</strong>
+                                    <small class="text-muted">Requested: {{ request.requested_at|date:"M d, Y" }}</small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="alert alert-info">No pending join requests.</div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{% url 'group_detail' group_name=group.name %}" class="btn btn-secondary">Back to Group</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

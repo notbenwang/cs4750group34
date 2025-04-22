@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">Unban User from {{ group.name }}</div>
+                <div class="card-body">
+                    {% if banned_users %}
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ form|crispy }}
+                            <button type="submit" class="btn btn-success">Unban User</button>
+                        </form>
+                        <hr>
+                        <h5>Currently Banned Users:</h5>
+                        <ul class="list-group">
+                            {% for user in banned_users %}
+                                <li class="list-group-item">
+                                    <strong>{{ user.username }}</strong>
+                                    <small class="text-muted">Banned: {{ user.banned_at|date:"M d, Y" }}</small>
+                                    <p><em>Reason: {{ user.reason }}</em></p>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="alert alert-info">No banned users.</div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{% url 'group_detail' group_name=group.name %}" class="btn btn-secondary">Back to Group</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

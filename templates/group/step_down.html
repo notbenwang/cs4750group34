@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">Step Down as Admin of {{ group.name }}</div>
+                <div class="card-body">
+                    {% if moderators %}
+                        <div class="alert alert-warning">
+                            <strong>Warning:</strong> This action will transfer your admin status to another moderator and cannot be undone.
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ form|crispy }}
+                            <button type="submit" class="btn btn-danger">Transfer Admin Status</button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info">No moderators available to transfer admin status to.</div>
+                        <p>Appoint at least one moderator before stepping down as admin.</p>
+                        <a href="{% url 'appoint_moderator' group_name=group.name %}" class="btn btn-primary">Appoint Moderator</a>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{% url 'group_detail' group_name=group.name %}" class="btn btn-secondary">Back to Group</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

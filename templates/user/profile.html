@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-8">
+            <h1>{{ profile_user.username }}'s Profile</h1>
+            
+            {% if is_owner %}
+                <div class="mb-3">
+                    <a href="{% url 'edit_bio' %}" class="btn btn-primary">Edit Bio</a>
+                </div>
+            {% endif %}
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4>{% if is_top %}Top Content{% else %}Recent Content{% endif %}</h4>
+                        <div>
+                            {% if not is_top %}
+                                <a href="{% url 'user_top_content' username=profile_user.username %}" class="btn btn-sm btn-outline-secondary">Sort by Top</a>
+                            {% else %}
+                                <a href="{% url 'user_profile' username=profile_user.username %}" class="btn btn-sm btn-outline-secondary">Sort by New</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% if content %}
+                        {% for item in content %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            {% if item.content_type == 'post' %}
+                                                <a href="{% url 'post_detail' group_name=item.group_name post_id=item.content_id %}">{{ item.title }}</a>
+                                                <span class="badge bg-primary">Post</span>
+                                            {% else %}
+                                                <a href="{% url 'post_detail' group_name=item.group_name post_id=item.post_id %}">{{ item.title }}...</a>
+                                                <span class="badge bg-secondary">Comment</span>
+                                            {% endif %}
+                                        </h5>
+                                        <small>
+                                            in <a href="{% url 'group_detail' group_name=item.group_name %}">{{ item.group_name }}</a>
+                                            on {{ item.created_at|date:"M d, Y" }}
+                                        </small>
+                                    </div>
+                                    <span class="badge bg-secondary rounded-pill {% if item.karma > 0 %}karma-positive{% elif item.karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">
+                                        {{ item.karma }}
+                                    </span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item">No content yet.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">About {{ profile_user.username }}</div>
+                <div class="card-body">
+                    <p>{{ profile_user.bio|default:"No bio provided." }}</p>
+                    <p><strong>Joined:</strong> {{ profile_user.created_at|date:"M d, Y" }}</p>
+                    <p><strong>Total Karma:</strong> <span class="{% if profile.total_karma > 0 %}karma-positive{% elif profile.total_karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">{{ profile.total_karma }}</span></p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">Groups</div>
+                <ul class="list-group list-group-flush">
+                    {% if groups %}
+                        {% for group in groups %}
+                            <li class="list-group-item">
+                                <a href="{% url 'group_detail' group_name=group.name %}">{{ group.name }}</a>
+                                {% if group.role == 'admin' %}
+                                    <span class="badge bg-danger">Admin</span>
+                                {% elif group.role == 'moderator' %}
+                                    <span class="badge bg-warning text-dark">Moderator</span>
+                                {% endif %}
+                                {% if group.group_type == 'private' %}
+                                    <span class="badge bg-info text-dark">Private</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item">Not a member of any groups.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+{% endblock %}

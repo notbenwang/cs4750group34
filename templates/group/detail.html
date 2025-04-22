@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-8">
+            <h1>{{ group.name }}</h1>
+            
+            {% if is_private %}
+                <div class="alert alert-warning">
+                    This group is private. You need to be a member to view its content.
+                    {% if user %}
+                        <form action="{% url 'join_group' group_id=group.group_id %}" method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary">Request to Join</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-primary">Login to Join</a>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="mb-3">
+                    {% if user %}
+                        {% if is_banned %}
+                            <div class="alert alert-danger">You are banned from this group.</div>
+                        {% elif role %}
+                            {% if role == 'admin' %}
+                                <div class="badge bg-danger">Admin</div>
+                                <a href="{% url 'appoint_moderator' group_name=group.name %}" class="btn btn-sm btn-outline-primary">Appoint Moderator</a>
+                                <a href="{% url 'step_down' group_name=group.name %}" class="btn btn-sm btn-outline-primary">Step Down</a>
+                            {% elif role == 'moderator' %}
+                                <div class="badge bg-warning text-dark">Moderator</div>
+                                <form action="{% url 'leave_group' group_id=group.group_id %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Leave Group</button>
+                                </form>
+                            {% else %}
+                                <div class="badge bg-info text-dark">Member</div>
+                                <form action="{% url 'leave_group' group_id=group.group_id %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Leave Group</button>
+                                </form>
+                            {% endif %}
+                            <a href="{% url 'create_post' group_name=group.name %}" class="btn btn-sm btn-primary">New Post</a>
+                        {% else %}
+                            <form action="{% url 'join_group' group_id=group.group_id %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary">Join Group</button>
+                            </form>
+                        {% endif %}
+                        
+                        {% if role == 'admin' or role == 'moderator' %}
+                            <a href="{% url 'ban_user' group_name=group.name %}" class="btn btn-sm btn-outline-danger">Ban User</a>
+                            <a href="{% url 'unban_user' group_name=group.name %}" class="btn btn-sm btn-outline-success">Unban User</a>
+                            
+                            {% if group.group_type == 'private' %}
+                                <a href="{% url 'approve_joins' group_name=group.name %}" class="btn btn-sm btn-outline-primary">Approve Joins</a>
+                            {% endif %}
+                        {% endif %}
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-sm btn-primary">Login to Join</a>
+                    {% endif %}
+                    
+                    {% if not is_top %}
+                        <a href="{% url 'group_top_posts' group_name=group.name %}" class="btn btn-sm btn-outline-secondary">Sort by Top</a>
+                    {% else %}
+                        <a href="{% url 'group_detail' group_name=group.name %}" class="btn btn-sm btn-outline-secondary">Sort by New</a>
+                    {% endif %}
+                </div>
+                
+                {% if posts %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4>{% if is_top %}Top Posts{% else %}Recent Posts{% endif %}</h4>
+                        </div>
+                        <ul class="list-group list-group-flush">
+                            {% for post in posts %}
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-1">
+                                                <a href="{% url 'post_detail' group_name=group.name post_id=post.post_id %}">{{ post.title }}</a>
+                                            </h5>
+                                            <small>
+                                                Posted by <a href="{% url 'user_profile' username=post.username %}">{{ post.username }}</a>
+                                                on {{ post.created_at|date:"M d, Y" }}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-secondary rounded-pill {% if post.karma > 0 %}karma-positive{% elif post.karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">
+                                                {{ post.karma }}
+                                            </span>
+                                            {% if user and not is_banned %}
+                                                <a href="{% url 'vote_post' post_id=post.post_id vote_type='up' %}" class="btn btn-sm btn-outline-success">+</a>
+                                                <a href="{% url 'vote_post' post_id=post.post_id vote_type='down' %}" class="btn btn-sm btn-outline-danger">-</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">No posts in this group yet.</div>
+                {% endif %}
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">About {{ group.name }}</div>
+                <div class="card-body">
+                    <p>{{ group.description }}</p>
+                    <p><strong>Created:</strong> {{ group.created_at|date:"M d, Y" }}</p>
+                    <p><strong>Members:</strong> {{ group.member_count }}</p>
+                    <p><strong>Type:</strong> {{ group.group_type|title }}</p>
+                    <p><strong>Created by:</strong> <a href="{% url 'user_profile' username=group.created_by_username %}">{{ group.created_by_username }}</a></p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">Moderators</div>
+                <ul class="list-group list-group-flush">
+                    {% for mod in moderators %}
+                        <li class="list-group-item">
+                            <a href="{% url 'user_profile' username=mod.username %}">{{ mod.username }}</a>
+                            {% if mod.role == 'admin' %}<span class="badge bg-danger">Admin</span>{% endif %}
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">No moderators found.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+{% endblock %}

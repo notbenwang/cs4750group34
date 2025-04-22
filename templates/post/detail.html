@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-8">
+            <h1>{{ post.title }}</h1>
+            <p class="text-muted">
+                Posted by <a href="{% url 'user_profile' username=post.username %}">{{ post.username }}</a>
+                in <a href="{% url 'group_detail' group_name=post.group_name %}">{{ post.group_name }}</a>
+                on {{ post.created_at|date:"M d, Y H:i" }}
+            </p>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            {{ post.content|linebreaks }}
+                        </div>
+                        <div>
+                            <div class="badge bg-secondary rounded-pill {% if post.karma > 0 %}karma-positive{% elif post.karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">
+                                {{ post.karma }}
+                            </div>
+                            {% if user and not is_banned %}
+                                <div class="d-flex flex-column">
+                                    <a href="{% url 'vote_post' post_id=post.post_id vote_type='up' %}" class="btn btn-sm btn-outline-success mb-1">+</a>
+                                    <a href="{% url 'vote_post' post_id=post.post_id vote_type='down' %}" class="btn btn-sm btn-outline-danger">-</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if user %}
+                        <div class="mt-3">
+                            {% if user.user_id == post.user_id %}
+                                <a href="{% url 'edit_post' post_id=post.post_id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                <a href="{% url 'delete_post' post_id=post.post_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this post?')">Delete</a>
+                            {% elif role == 'admin' or role == 'moderator' %}
+                                <a href="{% url 'delete_post' post_id=post.post_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this post?')">Delete</a>
+                            {% endif %}
+                            <a href="{% url 'save_post' post_id=post.post_id %}" class="btn btn-sm btn-outline-secondary">Save</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if user and not is_banned %}
+                <div class="card mb-4">
+                    <div class="card-header">Add Comment</div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'add_comment' post_id=post.post_id %}">
+                            {% csrf_token %}
+                            {{ comment_form|crispy }}
+                            <button type="submit" class="btn btn-primary">Post Comment</button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <h3 class="mb-3">Comments</h3>
+            
+            {% if comments %}
+                {% for comment in comments %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    {% if comment.is_deleted %}
+                                        <p class="text-muted"><i>[Deleted]</i></p>
+                                    {% else %}
+                                        <div class="d-flex justify-content-between">
+                                            <p>{{ comment.content|linebreaks }}</p>
+                                        </div>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        {% if not comment.is_deleted %}
+                                            By <a href="{% url 'user_profile' username=comment.username %}">{{ comment.username }}</a>
+                                        {% endif %}
+                                        on {{ comment.created_at|date:"M d, Y H:i" }}
+                                    </small>
+                                    
+                                    {% if user and not is_banned and not comment.is_deleted %}
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="showReplyForm('reply-form-{{ comment.comment_id }}')">Reply</button>
+                                            {% if user.user_id == comment.user_id %}
+                                                <a href="{% url 'edit_comment' comment_id=comment.comment_id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                                <a href="{% url 'delete_comment' comment_id=comment.comment_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this comment?')">Delete</a>
+                                            {% elif role == 'admin' or role == 'moderator' %}
+                                                <a href="{% url 'delete_comment' comment_id=comment.comment_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this comment?')">Delete</a>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div id="reply-form-{{ comment.comment_id }}" class="mt-2" style="display: none;">
+                                            <form method="post" action="{% url 'add_comment' post_id=post.post_id %}">
+                                                {% csrf_token %}
+                                                <div class="form-group">
+                                                    <textarea name="content" class="form-control" rows="3" required></textarea>
+                                                </div>
+                                                <input type="hidden" name="parent_comment_id" value="{{ comment.comment_id }}">
+                                                <button type="submit" class="btn btn-sm btn-primary mt-2">Post Reply</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="badge bg-secondary rounded-pill {% if comment.karma > 0 %}karma-positive{% elif comment.karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">
+                                        {{ comment.karma }}
+                                    </div>
+                                    {% if user and not is_banned and not comment.is_deleted %}
+                                        <div class="d-flex flex-column">
+                                            <a href="{% url 'vote_comment' comment_id=comment.comment_id vote_type='up' %}" class="btn btn-sm btn-outline-success mb-1">+</a>
+                                            <a href="{% url 'vote_comment' comment_id=comment.comment_id vote_type='down' %}" class="btn btn-sm btn-outline-danger">-</a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if comment.replies %}
+                                {% for reply in comment.replies %}
+                                    <div class="comment-container">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                {% if reply.is_deleted %}
+                                                    <p class="text-muted"><i>[Deleted]</i></p>
+                                                {% else %}
+                                                    <p>{{ reply.content|linebreaks }}</p>
+                                                {% endif %}
+                                                <small class="text-muted">
+                                                    {% if not reply.is_deleted %}
+                                                        By <a href="{% url 'user_profile' username=reply.username %}">{{ reply.username }}</a>
+                                                    {% endif %}
+                                                    on {{ reply.created_at|date:"M d, Y H:i" }}
+                                                </small>
+                                                
+                                                {% if user and not is_banned and not reply.is_deleted %}
+                                                    <div class="mt-2">
+                                                        <button class="btn btn-sm btn-outline-secondary" onclick="showReplyForm('reply-form-{{ reply.comment_id }}')">Reply</button>
+                                                        {% if user.user_id == reply.user_id %}
+                                                            <a href="{% url 'edit_comment' comment_id=reply.comment_id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                                            <a href="{% url 'delete_comment' comment_id=reply.comment_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this comment?')">Delete</a>
+                                                        {% elif role == 'admin' or role == 'moderator' %}
+                                                            <a href="{% url 'delete_comment' comment_id=reply.comment_id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this comment?')">Delete</a>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <div id="reply-form-{{ reply.comment_id }}" class="mt-2" style="display: none;">
+                                                        <form method="post" action="{% url 'add_comment' post_id=post.post_id %}">
+                                                            {% csrf_token %}
+                                                            <div class="form-group">
+                                                                <textarea name="content" class="form-control" rows="3" required></textarea>
+                                                            </div>
+                                                            <input type="hidden" name="parent_comment_id" value="{{ comment.comment_id }}">
+                                                            <button type="submit" class="btn btn-sm btn-primary mt-2">Post Reply</button>
+                                                        </form>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <div class="badge bg-secondary rounded-pill {% if reply.karma > 0 %}karma-positive{% elif reply.karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">
+                                                    {{ reply.karma }}
+                                                </div>
+                                                {% if user and not is_banned and not reply.is_deleted %}
+                                                    <div class="d-flex flex-column">
+                                                        <a href="{% url 'vote_comment' comment_id=reply.comment_id vote_type='up' %}" class="btn btn-sm btn-outline-success mb-1">+</a>
+                                                        <a href="{% url 'vote_comment' comment_id=reply.comment_id vote_type='down' %}" class="btn btn-sm btn-outline-danger">-</a>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="alert alert-info">No comments yet. Be the first to comment!</div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">No comments yet. Be the first to comment!</div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">About {{ post.group_name }}</div>
+                <div class="card-body">
+                    <p>{{ group.description }}</p>
+                    <a href="{% url 'group_detail' group_name=post.group_name %}" class="btn btn-primary">Go to Group</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showReplyForm(formId) {
+            // Hide all reply forms
+            document.querySelectorAll('[id^="reply-form-"]').forEach(form => {
+                form.style.display = 'none';
+            });
+            
+            // Show the selected form
+            document.getElementById(formId).style.display = 'block';
+        }
+    </script>
+{% endblock %}

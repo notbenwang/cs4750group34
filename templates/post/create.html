@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">{% if edit_mode %}Edit Post{% else %}Create New Post in {{ group.name }}{% endif %}</div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {{ form|crispy }}
+                        <button type="submit" class="btn btn-primary">{% if edit_mode %}Update Post{% else %}Create Post{% endif %}</button>
+                        {% if edit_mode %}
+                            <a href="{% url 'post_detail' group_name=group_name post_id=post_id %}" class="btn btn-secondary">Cancel</a>
+                        {% else %}
+                            <a href="{% url 'group_detail' group_name=group.name %}" class="btn btn-secondary">Cancel</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

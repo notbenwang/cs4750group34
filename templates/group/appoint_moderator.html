@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">Appoint Moderator for {{ group.name }}</div>
+                <div class="card-body">
+                    {% if members %}
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ form|crispy }}
+                            <button type="submit" class="btn btn-primary">Appoint as Moderator</button>
+                        </form>
+                        <hr>
+                        <h5>Group Members:</h5>
+                        <ul class="list-group">
+                            {% for member in members %}
+                                <li class="list-group-item">
+                                    <strong>{{ member.username }}</strong>
+                                    {% if member.role == 'moderator' %}<span class="badge bg-warning text-dark">Already a Moderator</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="alert alert-info">No members to promote to moderator.</div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{% url 'group_detail' group_name=group.name %}" class="btn btn-secondary">Back to Group</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

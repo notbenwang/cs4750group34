@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-8">
+            <h1>{% if query %}Search results for "{{ query }}"{% elif user %}Your Feed{% else %}Welcome to Reddit Clone{% endif %}</h1>
+            
+            {% if user and feed %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2>Your Feed</h2>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for post in feed %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            <a href="{% url 'post_detail' group_name=post.group_name post_id=post.post_id %}">{{ post.title }}</a>
+                                        </h5>
+                                        <small>
+                                            Posted in <a href="{% url 'group_detail' group_name=post.group_name %}">{{ post.group_name }}</a>
+                                            by <a href="{% url 'user_profile' username=post.author_name %}">{{ post.author_name }}</a>
+                                            on {{ post.created_at|date:"M d, Y" }}
+                                        </small>
+                                    </div>
+                                    <span class="badge bg-secondary rounded-pill {% if post.karma > 0 %}karma-positive{% elif post.karma < 0 %}karma-negative{% else %}karma-zero{% endif %}">
+                                        {{ post.karma }}
+                                    </span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% elif user %}
+                <p>Your feed is empty. Join some groups to see content!</p>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2>{% if query %}Search Results{% else %}Groups{% endif %}</h2>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% if groups %}
+                        {% for group in groups %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            <a href="{% url 'group_detail' group_name=group.name %}">{{ group.name }}</a>
+                                            {% if group.group_type == 'private' %}<span class="badge bg-warning text-dark">Private</span>{% endif %}
+                                        </h5>
+                                        <small>{{ group.description|truncatechars:100 }}</small><br>
+                                        <small>Members: {{ group.member_count }} | Created by: {{ group.created_by_username }}</small>
+                                    </div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="list-group-item">No groups found.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">About</div>
+                <div class="card-body">
+                    <h5 class="card-title">Welcome to Reddit Clone!</h5>
+                    <p class="card-text">A simple Reddit-like platform built with Django and PostgreSQL.</p>
+                    {% if not user %}
+                        <a href="{% url 'signup' %}" class="btn btn-primary">Sign Up</a>
+                        <a href="{% url 'login' %}" class="btn btn-outline-primary">Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
