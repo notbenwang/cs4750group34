@@ -1,11 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Q
 from django.db import IntegrityError
-from db_project.forms import ProfileEditForm, CreateCommunityForm
-from db_project.models import Community, Posts, Appuser, Usercommunity, PostInteraction
+from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
+from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
 from django.contrib import messages
 from django.utils import timezone
 from urllib.parse import quote
+from django.shortcuts import (
+    get_object_or_404, render, redirect
+)
+from django.contrib.auth.decorators import login_required
 
 def get_user_id_from_auth_id(user_id):
     return Appuser.objects.get(auth_id = user_id).user_id
@@ -90,6 +94,21 @@ def post_detail(request, community_name, post_id):
     upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
     downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
     post.score = upvotes - downvotes
+
+    comments = (
+        Comment.objects
+        .filter(post=post, reply_to_comment__isnull=True)
+        .select_related("user")
+        .prefetch_related("comment")
+        .order_by("-creation_date")
+    )
+    context = {
+        "post": post,
+        "community": community,
+        "is_owner": is_owner,
+        "comments": comments,
+        "comment_form": CommentCreateForm(),
+    }
 
     return render(request, 'posts/post_detail.html', {'post': post, 'community': community, 'is_owner': is_owner})
 
@@ -220,3 +239,90 @@ def vote_post(request, post_id):
         )
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
+
+@login_required
+def add_comment(request, post_id, parent_id=None):
+    post = get_object_or_404(Posts, pk=post_id)
+    community = post.community
+    parent = None
+    if parent_id:
+        parent = get_object_or_404(Comment, pk=parent_id)
+
+    if request.method == "POST":
+        form = CommentCreateForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.author_id = request.user.id
+            comment.post = post
+            comment.reply_to_comment = parent
+            comment.save()
+            return redirect("post_detail", community_name=community.name, post_id=post.post_id)
+    else:
+        form = CommentCreateForm()
+
+    return render(
+        request,
+        "comment/comment_form.html",
+        {"form": form, "post": post, "parent": parent, "community": community},
+    )
+
+
+@login_required
+def edit_comment(request, comment_id):
+    comment = get_object_or_404(
+        Comment, pk=comment_id, author_id=request.user.id
+    )
+
+    community = comment.post.community
+
+    if request.method == "POST":
+        form = CommentEditForm(request.POST, instance=comment)
+        if form.is_valid():
+            form.save()
+            return redirect("post_detail", community_name=community.name, post_id=comment.post_id)
+    else:
+        form = CommentEditForm(instance=comment)
+
+    return render(
+        request,
+        "comment/comment_form.html",
+        {"form": form, "post": comment.post, "community": community, "editing": True},
+    )
+
+
+@login_required
+def delete_comment(request, comment_id):
+    comment = get_object_or_404(
+        Comment, pk=comment_id, author_id=request.user.id
+    )
+    post_id = comment.post_id
+    community = comment.post.community
+
+    if request.method == "POST":
+        comment.delete()
+        return redirect("post_detail", community_name=community.name, post_id=post_id)
+
+    return render(
+        request,
+        "comment/comment_confirm_delete.html",
+        {"comment": comment, "community": community},
+    )
+
+
+@login_required
+def vote_comment(request, comment_id, direction):
+    comment = get_object_or_404(Comment, pk=comment_id)
+    value = 1 if direction == "up" else -1
+
+    try:
+        obj, created = CommentInteraction.objects.update_or_create(
+            user_id=request.user.id,
+            comment=comment,
+            defaults={"value": value},
+        )
+        if not created and obj.value == value:
+            obj.delete()
+    except IntegrityError:
+        pass
+
+    return redirect("post_detail", post_id=comment.post_id)
