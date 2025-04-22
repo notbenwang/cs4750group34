@@ -79,19 +79,32 @@ def post_detail(request, community_name, post_id):
     post = get_object_or_404(Posts, post_id=post_id, community=community)
 
     is_owner = False
+    user_vote = None
+
     if request.user.is_authenticated:
         try:
             app_user = Appuser.objects.get(auth_id=request.user.id)
+
             if app_user.user_id == post.user_id:
                 is_owner = True
+
+            interaction = PostInteraction.objects.filter(user=app_user, post=post).first()
+            if interaction:
+                user_vote = interaction.interaction_type
+
         except Appuser.DoesNotExist:
             pass
-    
+
     upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
     downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
     post.score = upvotes - downvotes
 
-    return render(request, 'posts/post_detail.html', {'post': post, 'community': community, 'is_owner': is_owner})
+    return render(request, 'posts/post_detail.html', {
+        'post': post,
+        'community': community,
+        'is_owner': is_owner,
+        'user_vote': user_vote
+    })
 
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
@@ -212,11 +225,16 @@ def vote_post(request, post_id):
     if request.method == "POST" and request.user.is_authenticated:
         vote_type = request.POST.get("vote_type")
         post = get_object_or_404(Posts, pk=post_id)
+        app_user = get_object_or_404(Appuser, auth_id=request.user.id)
 
-        PostInteraction.objects.update_or_create(
-            user=Appuser.objects.get(auth_id=request.user.id),
-            post=post,
-            defaults={'interaction_type': vote_type}
-        )
+        interaction = PostInteraction.objects.filter(user=app_user, post=post).first()
+        if interaction:
+            if interaction.interaction_type == vote_type:
+                interaction.delete()  # remove vote
+            else:
+                interaction.interaction_type = vote_type
+                interaction.save()
+        else:
+            PostInteraction.objects.create(user=app_user, post=post, interaction_type=vote_type)
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
