@@ -35,26 +35,26 @@
       <small>
           score {{ comment.score }}
           &middot;
-          <a href="{% url 'vote_comment' comment.id 'up' %}">▲</a>
-          <a href="{% url 'vote_comment' comment.id 'down' %}">▼</a>
+          <a href="{% url 'vote_comment' comment.comment_id 'up' %}">▲</a>
+          <a href="{% url 'vote_comment' comment.comment_id 'down' %}">▼</a>
           {% if comment.author_id == request.user.id %}
-              &middot; <a href="{% url 'edit_comment' comment.id %}">edit</a>
-              &middot; <a href="{% url 'delete_comment' comment.id %}">delete</a>
+              &middot; <a href="{% url 'edit_comment' comment.comment_id %}">edit</a>
+              &middot; <a href="{% url 'delete_comment' comment.comment_id %}">delete</a>
           {% endif %}
-          &middot; <a href="{% url 'reply_comment' post.post_id comment.id %}">reply</a>
+          &middot; <a href="{% url 'reply_comment' post.post_id comment.comment_id %}">reply</a>
       </small>
 
-      {% for reply in comment.comment.all %}
+      {% for reply in comment.comment_set.all %}
           <div class="comment reply">
               <p>{{ reply.content|linebreaks }}</p>
               <small>
                   score {{ reply.score }}
                   &middot;
-                  <a href="{% url 'vote_comment' reply.id 'up' %}">▲</a>
-                  <a href="{% url 'vote_comment' reply.id 'down' %}">▼</a>
+                  <a href="{% url 'vote_comment' reply.comment_id 'up' %}">▲</a>
+                  <a href="{% url 'vote_comment' reply.comment_id 'down' %}">▼</a>
                   {% if reply.author_id == request.user.id %}
-                      &middot; <a href="{% url 'edit_comment' reply.id %}">edit</a>
-                      &middot; <a href="{% url 'delete_comment' reply.id %}">delete</a>
+                      &middot; <a href="{% url 'edit_comment' reply.comment_id %}">edit</a>
+                      &middot; <a href="{% url 'delete_comment' reply.comment_id %}">delete</a>
                   {% endif %}
               </small>
           </div>

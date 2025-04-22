@@ -99,7 +99,7 @@ def post_detail(request, community_name, post_id):
         Comment.objects
         .filter(post=post, reply_to_comment__isnull=True)
         .select_related("user")
-        .prefetch_related("comment")
+        .prefetch_related("comment_set")
         .order_by("-creation_date")
     )
     context = {
@@ -110,7 +110,7 @@ def post_detail(request, community_name, post_id):
         "comment_form": CommentCreateForm(),
     }
 
-    return render(request, 'posts/post_detail.html', {'post': post, 'community': community, 'is_owner': is_owner})
+    return render(request, "posts/post_detail.html", context)
 
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
