@@ -348,20 +348,20 @@ def vote_comment(request, comment_id, direction):
 
     interaction_type = "upvote" if direction == "up" else "downvote"
 
+    # upsert
     CommentInteraction.objects.update_or_create(
         user=voter,
         comment=comment,
         defaults={"interaction_type": interaction_type},
     )
 
-    counts = (
-        CommentInteraction.objects
-        .filter(comment=comment)
-        .values("interaction_type")
-        .annotate(c=Count("id"))
-    )
-    up = next((row["c"] for row in counts if row["interaction_type"] == "upvote"), 0)
-    dn = next((row["c"] for row in counts if row["interaction_type"] == "downvote"), 0)
+    up = CommentInteraction.objects.filter(
+            comment=comment, interaction_type="upvote"
+         ).count()
+    dn = CommentInteraction.objects.filter(
+            comment=comment, interaction_type="downvote"
+         ).count()
+
     Comment.objects.filter(pk=comment.pk).update(upvotes=up, downvotes=dn)
 
     return redirect(
