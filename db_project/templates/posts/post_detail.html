@@ -23,7 +23,9 @@ Replies
 <ul>
     {% for comment in comment_list %}
     <li>
-        {{comment.indent}}{{comment.data.content}} {{comment.data.comment_id}}
+        {{comment.indent}}{{comment.data.content}} <small>
+            - {{comment.username}}, {{comment.data.creation_date}}
+        </small>
     </li>
     
     {% endfor %}
