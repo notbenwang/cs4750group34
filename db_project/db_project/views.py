@@ -1,4 +1,4 @@
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Q, F
 from django.db import IntegrityError
@@ -10,6 +10,7 @@ from urllib.parse import quote
 from django.shortcuts import (
     get_object_or_404, render, redirect
 )
+from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 
 def moderator_required(view_func):
@@ -275,10 +276,7 @@ def vote_post(request, post_id):
 @login_required
 def add_comment(request, post_id, parent_id=None):
     post = get_object_or_404(Posts, pk=post_id)
-    community = post.community
-    parent = None
-    if parent_id:
-        parent = get_object_or_404(Comment, pk=parent_id)
+    parent = get_object_or_404(Comment, pk=parent_id) if parent_id else None
 
     if request.method == "POST":
         form = CommentCreateForm(request.POST)
@@ -287,16 +285,18 @@ def add_comment(request, post_id, parent_id=None):
             comment.author_id = request.user.id
             comment.post = post
             comment.reply_to_comment = parent
+            comment.creation_date = timezone.now()   # ensure timestamp
+            comment.upvotes = 0                      # initialise counts
+            comment.downvotes = 0
             comment.save()
-            return redirect("post_detail", community_name=community.name, post_id=post.post_id)
+            return redirect("post_detail",
+                            community_name=post.community.name,
+                            post_id=post.post_id)
     else:
         form = CommentCreateForm()
-
-    return render(
-        request,
-        "comment/comment_form.html",
-        {"form": form, "post": post, "parent": parent, "community": community},
-    )
+    return render(request, "comment/comment_form.html",
+                  {"form": form, "post": post, "parent": parent,
+                   "community": post.community})
 
 
 @login_required
@@ -343,29 +343,26 @@ def delete_comment(request, comment_id):
 
 @login_required
 def vote_comment(request, comment_id, direction):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
     comment = get_object_or_404(Comment, pk=comment_id)
-    voter   = get_object_or_404(Appuser, auth_id=request.user.id)
+    voter = get_object_or_404(Appuser, auth_id=request.user.id)
 
     interaction_type = "upvote" if direction == "up" else "downvote"
 
-    # upsert
     CommentInteraction.objects.update_or_create(
         user=voter,
         comment=comment,
         defaults={"interaction_type": interaction_type},
     )
 
-    up = CommentInteraction.objects.filter(
-            comment=comment, interaction_type="upvote"
-         ).count()
-    dn = CommentInteraction.objects.filter(
-            comment=comment, interaction_type="downvote"
-         ).count()
-
+    up = CommentInteraction.objects.filter(comment=comment, interaction_type="upvote").count()
+    dn = CommentInteraction.objects.filter(comment=comment, interaction_type="downvote").count()
     Comment.objects.filter(pk=comment.pk).update(upvotes=up, downvotes=dn)
 
-    return redirect(
-        "post_detail",
-        community_name=comment.post.community.name,
-        post_id=comment.post_id,
-    )
+    html = render_to_string("posts/partials/comment_score.html", {
+        "score": up - dn,
+        "comment_id": comment.comment_id
+    })
+    return HttpResponse(html)
