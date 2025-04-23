@@ -19,6 +19,15 @@
 </form>
 {% endif %}
 
+
+Add Comment
+<form method="post" action="{% url 'add_comment' community_name=community.name post_id=post.post_id comment_id=0 %}">
+    {% csrf_token %}
+    <input type ="text" name="content">
+    <button type="submit">Reply</button>
+</form>
+
+{% if comment_list %}
 Replies
 <ul>
     {% for comment in comment_list %}
@@ -26,10 +35,34 @@ Replies
         {{comment.indent}}{{comment.data.content}} <small>
             - {{comment.username}}, {{comment.data.creation_date}}
         </small>
+        <button type="button" onclick="toggleForm({{comment.data.comment_id}})">Reply</button>
+        <div id="comment-form-{{comment.data.comment_id}}" style="display: none; margin-top: 10px;">
+            <form method="POST" action="{% url 'add_comment' community_name=community.name post_id=post.post_id comment_id=comment.data.comment_id %}">
+                {% csrf_token %}
+                &nbsp;&nbsp;&nbsp;&nbsp;{{comment.indent}}<input type="text" name="content">
+                <button type="submit">Add Comment</button>
+            </form>
+        </div>
     </li>
-    
     {% endfor %}
 </ul>
+<!-- Javascript that toggles comment replies -->
+<script>
+    function toggleForm(commentId) {
+        const allForms = document.querySelectorAll('[id^="comment-form-"]');
+        allForms.forEach(form => {
+            if (form.id !== `comment-form-${commentId}`) {
+                form.style.display = 'none';
+            }
+        });
+        const form = document.getElementById(`comment-form-${commentId}`);
+        form.style.display = form.style.display === "none" ? "block" : "none";
+    }
+    </script>
+{% else %}
+No Replies yet
+{% endif %}
+
 
 
 <p>

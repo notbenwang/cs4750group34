@@ -6,6 +6,7 @@ from db_project.models import Community, Posts, Appuser, Usercommunity, PostInte
 from django.contrib import messages
 from django.utils import timezone
 from urllib.parse import quote
+from datetime import datetime
 
 def get_user_id_from_auth_id(user_id):
     return Appuser.objects.get(auth_id = user_id).user_id
@@ -118,7 +119,7 @@ def post_detail(request, community_name, post_id):
         while curr_comment['points_to']:
             level += 1
             curr_comment = comment_dict[curr_comment['points_to']]
-        comment_dict[rc.comment_id]["indent"] = "````" * level + '|-----'
+        comment_dict[rc.comment_id]["indent"] = "ㅤ" * level + '|-----'
         for i, comment in enumerate(comment_list):
             if comment['data'].comment_id == reply_comment['points_to']:
                 comment_list.insert(i+1, reply_comment)
@@ -136,6 +137,18 @@ def post_detail(request, community_name, post_id):
         'user_vote': user_vote,
         'comment_list' : comment_list
     })
+
+def add_comment(request, community_name, post_id, comment_id):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    if comment_id <= 0:
+        reply_to_comment_id = None
+    else:
+        reply_to_comment_id = comment_id
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    new_comment = Comment(post_id=post_id, user_id=appuser_id, reply_to_comment_id=reply_to_comment_id, content=request.POST.get("content"), creation_date=datetime.now())
+    new_comment.save()
+    return redirect("post_detail", community_name=community_name, post_id=post_id)
 
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
