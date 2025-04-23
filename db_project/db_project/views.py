@@ -174,7 +174,7 @@ def community_home(request, community_name):
         user_id=appuser.user_id
     )
     joined = True if community_interaction else False
-
+    role = "Visitor" if not community_interaction else community_interaction[0].role
     if request.method == "POST":
         if joined:
             if community_interaction[0].role == "Owner":
@@ -185,6 +185,7 @@ def community_home(request, community_name):
                 return render(request, 'communities/community_home.html', {
                     'community': community, 
                     'joined': joined,
+                    'role': role,
                     'posts': []
                 })
             community_interaction[0].delete()
@@ -207,9 +208,20 @@ def community_home(request, community_name):
     return render(request, 'communities/community_home.html', {
         'community': community,
         'joined': joined,
-        'posts': posts
+        'posts': posts,
+        'role': role
     })
 
+def community_role_edit(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    community_id = Community.objects.get(name=community_name)
+    usercommunity = Usercommunity.objects.filter(user_id=appuser_id, community_id=community_id)
+    if not usercommunity or usercommunity[0].role != "Owner":
+        return redirect(community_home, community_name=community_name)
+    
+    return render(request, 'communities/edit_roles.html')
 def profile(request):
     user = request.user
     if user.is_authenticated:
