@@ -1,0 +1,19 @@
+{% load comment_tree %}
+
+<div class="comment" style="margin-left:{{ depth|add:"0" }}rem;">
+    <p>{{ comment.content|linebreaks }}</p>
+    <small>
+        score {{ comment.score }}
+        · <a href="{% url 'vote_comment' comment.comment_id 'up' %}">▲</a>
+        <a href="{% url 'vote_comment' comment.comment_id 'down' %}">▼</a>
+        {% if comment.user.auth_id == request.user.id %}
+            · <a href="{% url 'edit_comment' comment.comment_id %}">edit</a>
+            · <a href="{% url 'delete_comment' comment.comment_id %}">delete</a>
+        {% endif %}
+        · <a href="{% url 'reply_comment' comment.post_id comment.comment_id %}">reply</a>
+    </small>
+</div>
+
+{% for child in comment.comment_set.all %}
+    {% render_comment child depth|add:"2" %}
+{% endfor %}

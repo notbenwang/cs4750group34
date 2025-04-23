@@ -1,5 +1,6 @@
+from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F
 from django.db import IntegrityError
 from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
 from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
@@ -10,6 +11,24 @@ from django.shortcuts import (
     get_object_or_404, render, redirect
 )
 from django.contrib.auth.decorators import login_required
+
+def moderator_required(view_func):
+    def wrapper(request, community_name, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return HttpResponseForbidden("Login required")
+        community = get_object_or_404(Community, name=community_name)
+        try:
+            role = (
+                Usercommunity.objects
+                .get(user__auth_id=request.user.id, community=community)
+                .role
+            )
+            if role not in ("moderator", "admin"):
+                return HttpResponseForbidden("Moderator privileges required")
+        except Usercommunity.DoesNotExist:
+            return HttpResponseForbidden("Join the community first")
+        return view_func(request, community_name, *args, **kwargs)
+    return wrapper
 
 def get_user_id_from_auth_id(user_id):
     return Appuser.objects.get(auth_id = user_id).user_id
@@ -97,11 +116,14 @@ def post_detail(request, community_name, post_id):
 
     comments = (
         Comment.objects
-        .filter(post=post, reply_to_comment__isnull=True)
+        .filter(post=post)
         .select_related("user")
-        .prefetch_related("comment_set")
-        .order_by("-creation_date")
+        .prefetch_related(
+            "comment_set__user")
+        .annotate(score=F("upvotes") - F("downvotes"))
+        .order_by("creation_date")
     )
+    root_comments = [c for c in comments if c.reply_to_comment_id is None]
     context = {
         "post": post,
         "community": community,
@@ -110,7 +132,17 @@ def post_detail(request, community_name, post_id):
         "comment_form": CommentCreateForm(),
     }
 
-    return render(request, "posts/post_detail.html", context)
+    return render(
+        request,
+        "posts/post_detail.html",
+        {
+            "post": post,
+            "community": community,
+            "is_owner": is_owner,
+            "comments": root_comments,
+            "comment_form": CommentCreateForm(),
+        },
+    )
 
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
@@ -312,17 +344,28 @@ def delete_comment(request, comment_id):
 @login_required
 def vote_comment(request, comment_id, direction):
     comment = get_object_or_404(Comment, pk=comment_id)
-    value = 1 if direction == "up" else -1
+    voter   = get_object_or_404(Appuser, auth_id=request.user.id)
 
-    try:
-        obj, created = CommentInteraction.objects.update_or_create(
-            user_id=request.user.id,
-            comment=comment,
-            defaults={"value": value},
-        )
-        if not created and obj.value == value:
-            obj.delete()
-    except IntegrityError:
-        pass
+    interaction_type = "upvote" if direction == "up" else "downvote"
 
-    return redirect("post_detail", post_id=comment.post_id)
+    CommentInteraction.objects.update_or_create(
+        user=voter,
+        comment=comment,
+        defaults={"interaction_type": interaction_type},
+    )
+
+    counts = (
+        CommentInteraction.objects
+        .filter(comment=comment)
+        .values("interaction_type")
+        .annotate(c=Count("id"))
+    )
+    up = next((row["c"] for row in counts if row["interaction_type"] == "upvote"), 0)
+    dn = next((row["c"] for row in counts if row["interaction_type"] == "downvote"), 0)
+    Comment.objects.filter(pk=comment.pk).update(upvotes=up, downvotes=dn)
+
+    return redirect(
+        "post_detail",
+        community_name=comment.post.community.name,
+        post_id=comment.post_id,
+    )
