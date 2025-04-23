@@ -4,6 +4,7 @@ from django.db.models import Count, Q, F
 from django.db import IntegrityError
 from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
 from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
+from django.utils import timezone
 from django.contrib import messages
 from datetime import datetime
 from urllib.parse import quote
@@ -286,10 +287,11 @@ def add_comment(request, post_id, parent_id=None):
             comment.user_id = appuser_id
             comment.post = post
             comment.reply_to_comment = parent
-            comment.creation_date = datetime.now()   # ensure timestamp
+            comment.creation_date = timezone.now()   # ensure timestamp
             comment.upvotes = 0                      # initialise counts
             comment.downvotes = 0
             comment.save()
+            print(comment.creation_date)
             return redirect("post_detail",
                             community_name=post.community.name,
                             post_id=post.post_id)
