@@ -5,7 +5,7 @@ from django.db import IntegrityError
 from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
 from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
 from django.contrib import messages
-from django.utils import timezone
+from datetime import datetime
 from urllib.parse import quote
 from django.shortcuts import (
     get_object_or_404, render, redirect
@@ -277,15 +277,16 @@ def vote_post(request, post_id):
 def add_comment(request, post_id, parent_id=None):
     post = get_object_or_404(Posts, pk=post_id)
     parent = get_object_or_404(Comment, pk=parent_id) if parent_id else None
+    appuser_id = get_user_id_from_auth_id(request.user.id)
 
     if request.method == "POST":
         form = CommentCreateForm(request.POST)
         if form.is_valid():
             comment = form.save(commit=False)
-            comment.author_id = request.user.id
+            comment.user_id = appuser_id
             comment.post = post
             comment.reply_to_comment = parent
-            comment.creation_date = timezone.now()   # ensure timestamp
+            comment.creation_date = datetime.now()   # ensure timestamp
             comment.upvotes = 0                      # initialise counts
             comment.downvotes = 0
             comment.save()
@@ -301,8 +302,9 @@ def add_comment(request, post_id, parent_id=None):
 
 @login_required
 def edit_comment(request, comment_id):
+    appuser_id = get_user_id_from_auth_id(request.user.id)
     comment = get_object_or_404(
-        Comment, pk=comment_id, author_id=request.user.id
+        Comment, pk=comment_id, user_id=appuser_id
     )
 
     community = comment.post.community
@@ -324,8 +326,9 @@ def edit_comment(request, comment_id):
 
 @login_required
 def delete_comment(request, comment_id):
+    appuser_id = get_user_id_from_auth_id(request.user.id)
     comment = get_object_or_404(
-        Comment, pk=comment_id, author_id=request.user.id
+        Comment, pk=comment_id, user_id=appuser_id
     )
     post_id = comment.post_id
     community = comment.post.community
@@ -345,9 +348,9 @@ def delete_comment(request, comment_id):
 def vote_comment(request, comment_id, direction):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid method"}, status=405)
-
+    appuser_id = get_user_id_from_auth_id(request.user.id)
     comment = get_object_or_404(Comment, pk=comment_id)
-    voter = get_object_or_404(Appuser, auth_id=request.user.id)
+    voter = get_object_or_404(Appuser, auth_id=appuser_id)
 
     interaction_type = "upvote" if direction == "up" else "downvote"
 
