@@ -119,7 +119,7 @@ def post_detail(request, community_name, post_id):
         while curr_comment['points_to']:
             level += 1
             curr_comment = comment_dict[curr_comment['points_to']]
-        comment_dict[rc.comment_id]["indent"] = "ㅤ" * level + '|-----'
+        comment_dict[rc.comment_id]["indent"] = ">>" * level + '|-----'
         for i, comment in enumerate(comment_list):
             if comment['data'].comment_id == reply_comment['points_to']:
                 comment_list.insert(i+1, reply_comment)
@@ -127,8 +127,6 @@ def post_detail(request, community_name, post_id):
     for comment in comment_list:
         user_id = comment['data'].user_id
         comment['username'] = Appuser.objects.get(user_id = user_id).username
-    
-    print(comment_list)
     
     return render(request, 'posts/post_detail.html', {
         'post': post,
