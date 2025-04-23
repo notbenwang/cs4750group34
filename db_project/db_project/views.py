@@ -2,10 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Q
 from django.db import IntegrityError
 from db_project.forms import ProfileEditForm, CreateCommunityForm
-from db_project.models import Community, Posts, Appuser, Usercommunity, PostInteraction
+from db_project.models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
 from django.contrib import messages
 from django.utils import timezone
 from urllib.parse import quote
+from datetime import datetime
 
 def get_user_id_from_auth_id(user_id):
     return Appuser.objects.get(auth_id = user_id).user_id
@@ -98,13 +99,54 @@ def post_detail(request, community_name, post_id):
     upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
     downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
     post.score = upvotes - downvotes
-
+    
+    # convoluted way to sort replies into nested replies
+    all_comments = Comment.objects.filter(post_id=post_id)
+    comment_dict = {}
+    for comment in all_comments:
+        reply_id = comment.reply_to_comment_id
+        comment_dict[comment.comment_id] =  {'data': comment, 'points_to': reply_id}  
+    
+    root_comments = Comment.objects.filter(post_id=post_id, reply_to_comment_id__isnull = True).order_by("-creation_date")
+    reply_comments = Comment.objects.filter(post_id=post_id, reply_to_comment_id__isnull = False)
+    comment_list = [{'data': root_comment, 'points_to': None, 'indent':''} for root_comment in root_comments]
+    
+    # this gets it into a "hierarchy"
+    for rc in reply_comments:
+        reply_comment = comment_dict[rc.comment_id]
+        level = 0
+        curr_comment = reply_comment 
+        while curr_comment['points_to']:
+            level += 1
+            curr_comment = comment_dict[curr_comment['points_to']]
+        comment_dict[rc.comment_id]["indent"] = ">>" * level + '|-----'
+        for i, comment in enumerate(comment_list):
+            if comment['data'].comment_id == reply_comment['points_to']:
+                comment_list.insert(i+1, reply_comment)
+                break
+    for comment in comment_list:
+        user_id = comment['data'].user_id
+        comment['username'] = Appuser.objects.get(user_id = user_id).username
+    
     return render(request, 'posts/post_detail.html', {
         'post': post,
         'community': community,
         'is_owner': is_owner,
-        'user_vote': user_vote
+        'user_vote': user_vote,
+        'comment_list' : comment_list
     })
+
+def add_comment(request, community_name, post_id, comment_id):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    if comment_id <= 0:
+        reply_to_comment_id = None
+    else:
+        reply_to_comment_id = comment_id
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    new_comment = Comment(post_id=post_id, user_id=appuser_id, reply_to_comment_id=reply_to_comment_id, content=request.POST.get("content"), creation_date=datetime.now())
+    new_comment.save()
+    return redirect("post_detail", community_name=community_name, post_id=post_id)
 
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
@@ -159,6 +201,7 @@ def community_home(request, community_name):
     for post in posts:
         upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
         downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
+        
         post.score = upvotes - downvotes
 
     return render(request, 'communities/community_home.html', {
