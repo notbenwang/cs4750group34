@@ -1,6 +1,7 @@
+from django.db.models import IntegerField
 from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Count, Q, F
+from django.db.models import Count, Q, F, ExpressionWrapper
 from django.db import IntegrityError
 from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
 from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
@@ -119,9 +120,18 @@ def post_detail(request, community_name, post_id):
         Comment.objects
         .filter(post=post)
         .select_related("user")
-        .prefetch_related(
-            "comment_set__user")
-        .annotate(score=F("upvotes") - F("downvotes"))
+        .annotate(
+            upvotes_count=Count("commentinteraction",
+                                filter=Q(commentinteraction__interaction_type="upvote")),
+            downvotes_count=Count("commentinteraction",
+                                  filter=Q(commentinteraction__interaction_type="downvote")),
+        )
+        .annotate(
+            score=ExpressionWrapper(
+                F("upvotes_count") - F("downvotes_count"),
+                output_field=IntegerField(),  # ← INSTANCE, not class
+            )
+        )
         .order_by("creation_date")
     )
     root_comments = [c for c in comments if c.reply_to_comment_id is None]
