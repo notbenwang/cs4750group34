@@ -1,9 +1,10 @@
 {% load comment_tree tz %}
 
 <div class="comment" style="margin-left:{{ depth }}rem;">
-    <p>{{ comment.content|linebreaks }}</p>
-
+    <p><small>{{comment.score}} - </small>{{comment.content}}</p>
+    
     <small>
+
         {% timezone "US/Eastern" %}
         {{ comment.creation_date|date:"M d Y g:i A" }}
     {% endtimezone %}

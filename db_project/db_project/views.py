@@ -123,7 +123,7 @@ def post_detail(request, community_name, post_id):
         .prefetch_related(
             "comment_set__user")
         .annotate(score=F("upvotes") - F("downvotes"))
-        .order_by("creation_date")
+        .order_by("-score")
     )
     root_comments = [c for c in comments if c.reply_to_comment_id is None]
     context = {
@@ -291,7 +291,6 @@ def add_comment(request, post_id, parent_id=None):
             comment.upvotes = 0                      # initialise counts
             comment.downvotes = 0
             comment.save()
-            print(comment.creation_date)
             return redirect("post_detail",
                             community_name=post.community.name,
                             post_id=post.post_id)
