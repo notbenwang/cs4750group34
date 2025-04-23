@@ -19,6 +19,17 @@
 </form>
 {% endif %}
 
+Replies
+<ul>
+    {% for comment in comment_list %}
+    <li>
+        {{comment.indent}}{{comment.data.content}} {{comment.data.comment_id}}
+    </li>
+    
+    {% endfor %}
+</ul>
+
+
 <p>
     <a href="{% url 'community_home' community_name=community.name %}">Back to {{ community.name }}</a>
 </p>
