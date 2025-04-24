@@ -17,8 +17,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
-from . import views
-from .views import community_list, community_home, profile, edit_profile, create_community, create_post, post_detail, delete_post, vote_post, add_comment, edit_comment, delete_comment, vote_comment
+from db_project.views import (community_list, community_home, profile, edit_profile,
+                              create_community, create_post, post_detail, delete_post, 
+                              vote_post, add_comment, edit_comment, delete_comment, vote_comment,
+                              community_role_edit, edit_mods)
+
+
+
 urlpatterns = [ 
     path('admin/', admin.site.urls),
     path("accounts/", include("accounts.urls")),
@@ -29,9 +34,12 @@ urlpatterns = [
     path("profile/edit", edit_profile, name="edit_profile"),
     path("communities/create", create_community, name="create_community"),
     path("communities/<str:community_name>", community_home, name="community_home"),
+    path("communities/<str:community_name>/edit/roles", community_role_edit, name="edit_roles"),
+    path("communities/<str:community_name>/edit/roles/submit", edit_mods, name="edit_mods"),
     path("communities/<str:community_name>/create_post", create_post, name="create_post"),
     path("communities/<str:community_name>/<int:post_id>/", post_detail, name="post_detail"),
     path("communities/<str:community_name>/<int:post_id>/delete/", delete_post, name="delete_post"),
+    path("communities/<str:community_name>/<int:post_id>/add_comment/<int:comment_id>", add_comment, name="add_comment"),
     path("vote/<int:post_id>/", vote_post, name="vote"),
     # comment CRUD
     path("posts/<int:post_id>/comment/", add_comment, name="add_comment"),

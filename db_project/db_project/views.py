@@ -36,6 +36,7 @@ def moderator_required(view_func):
     return wrapper
 
 
+
 def get_user_id_from_auth_id(user_id):
     return Appuser.objects.get(auth_id=user_id).user_id
 
@@ -115,13 +116,22 @@ def post_detail(request, community_name, post_id):
 
     # owner check
     is_owner = False
+    user_vote = None
+
     if request.user.is_authenticated:
         try:
             app_user = Appuser.objects.get(auth_id=request.user.id)
+
             if app_user.user_id == post.user_id:
                 is_owner = True
+
+            interaction = PostInteraction.objects.filter(user=app_user, post=post).first()
+            if interaction:
+                user_vote = interaction.interaction_type
+
         except Appuser.DoesNotExist:
             pass
+
 
     # recalc post score
     up = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
@@ -169,6 +179,7 @@ def post_detail(request, community_name, post_id):
     )
 
 
+
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
     post = get_object_or_404(Posts, post_id=post_id, community=community)
@@ -196,7 +207,7 @@ def community_home(request, community_name):
         user_id=appuser.user_id
     )
     joined = True if community_interaction else False
-
+    role = "Visitor" if not community_interaction else community_interaction[0].role
     if request.method == "POST":
         if joined:
             if community_interaction[0].role == "Owner":
@@ -207,6 +218,7 @@ def community_home(request, community_name):
                 return render(request, 'communities/community_home.html', {
                     'community': community,
                     'joined': joined,
+                    'role': role,
                     'posts': []
                 })
             community_interaction[0].delete()
@@ -223,13 +235,50 @@ def community_home(request, community_name):
     for post in posts:
         upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
         downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
+        
         post.score = upvotes - downvotes
 
     return render(request, 'communities/community_home.html', {
         'community': community,
         'joined': joined,
-        'posts': posts
+        'posts': posts,
+        'role': role
     })
+
+def community_role_edit(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    community_id = Community.objects.get(name=community_name)
+    usercommunity = Usercommunity.objects.filter(user_id=appuser_id, community_id=community_id)
+    if not usercommunity or usercommunity[0].role != "Owner":
+        return redirect(community_home, community_name=community_name)
+    # get all members of community
+    members = Usercommunity.objects.filter(community_id=community_id).select_related("user").values("role", "user_id", "user__username").order_by("user__username")
+    mods = members.filter(role="Moderator")
+    owner = members.filter(role="Owner")[0]
+    return render(request, 'communities/edit_roles.html', {'members': members, "owner": owner, "mods": mods, "community":community_id, "app_id": appuser_id})
+
+def edit_mods(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    community_id = Community.objects.get(name=community_name)
+    usercommunity = Usercommunity.objects.filter(user_id=appuser_id, community_id=community_id)
+    if not usercommunity or usercommunity[0].role != "Owner":
+        return redirect(community_home, community_name=community_name)
+    if request.method == 'POST':
+        members = Usercommunity.objects.filter(community_id=community_id).select_related("user")
+        for member in members:
+            post_name=f"is_{member.user_id}_mod"
+            if post_name in request.POST:
+                member.role = "Moderator"
+            else:
+                if member.role != "Owner":
+                    member.role = "Member"
+            member.save()
+        return redirect(community_role_edit, community_name=community_name)
+    return redirect(community_home, community_name=community_name)
 
 
 def profile(request):
@@ -294,6 +343,18 @@ def vote_post(request, post_id):
     if request.method == "POST" and request.user.is_authenticated:
         vote_type = request.POST.get("vote_type")
         post = get_object_or_404(Posts, pk=post_id)
+        app_user = get_object_or_404(Appuser, auth_id=request.user.id)
+
+        interaction = PostInteraction.objects.filter(user=app_user, post=post).first()
+        if interaction:
+            if interaction.interaction_type == vote_type:
+                interaction.delete()  # remove vote
+            else:
+                interaction.interaction_type = vote_type
+                interaction.save()
+        else:
+            PostInteraction.objects.create(user=app_user, post=post, interaction_type=vote_type)
+
 
         PostInteraction.objects.update_or_create(
             user=Appuser.objects.get(auth_id=request.user.id),
