@@ -18,6 +18,7 @@
     <small>
         <a href="{% url 'edit_post' community.name post.post_id %}">Edit Post</a>
     </small>
+{% endif %}
 <div class="vote-box">
     <form method="post" action="{% url 'vote' post_id=post.post_id %}">
         {% csrf_token %}
@@ -26,6 +27,7 @@
         <button name="vote_type" value="downvote" type="submit">⬇️</button>
     </form>
 </div>
+
 
 {% if request.user.is_authenticated %}
 <hr>
@@ -52,7 +54,7 @@
 {% endfor %}
 
 
-
+{% if is_owner %}
 <hr>
 <form method="post"
       action="{% url 'delete_post' community_name=community.name post_id=post.post_id %}">
