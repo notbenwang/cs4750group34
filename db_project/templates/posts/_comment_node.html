@@ -1,14 +1,14 @@
 {% load comment_tree tz %}
 
 <div class="comment" style="margin-left:{{ depth }}rem;">
-    <p>{{ comment.content|linebreaks }}</p>
+    <p><small>{{comment.score}} - </small>{{comment.content}}</p>
 
     <small>
-        {% timezone "America/New_York" %}
-            {{ comment.creation_date|date:"M d Y g:i A" }}
-        {% endtimezone %}
-        ·
-        <span id="score-{{ comment.comment_id }}">{{ comment.score }}</span>
+
+        {% timezone "US/Eastern" %}
+        {{ comment.creation_date|date:"M d Y g:i A" }}
+    {% endtimezone %}
+    · <span id="score-{{ comment.comment_id }}">{{ comment.upvotes|default_if_none:0|add:"-"|add:comment.downvotes|default_if_none:0 }}</span>
 
         ·
         <button hx-post="{% url 'vote_comment' comment.comment_id 'up' %}"

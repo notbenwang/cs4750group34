@@ -1,18 +1,20 @@
-from django.db.models import IntegerField
 from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Count, Q, F, ExpressionWrapper
+from django.db.models import Count, Q, F
+from django.db.models import ExpressionWrapper, IntegerField
 from django.db import IntegrityError
 from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
 from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
-from django.contrib import messages
 from django.utils import timezone
+from django.contrib import messages
+from datetime import datetime
 from urllib.parse import quote
 from django.shortcuts import (
     get_object_or_404, render, redirect
 )
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
+
 
 def moderator_required(view_func):
     def wrapper(request, community_name, *args, **kwargs):
@@ -30,53 +32,60 @@ def moderator_required(view_func):
         except Usercommunity.DoesNotExist:
             return HttpResponseForbidden("Join the community first")
         return view_func(request, community_name, *args, **kwargs)
+
     return wrapper
 
+
 def get_user_id_from_auth_id(user_id):
-    return Appuser.objects.get(auth_id = user_id).user_id
+    return Appuser.objects.get(auth_id=user_id).user_id
+
 
 def community_list(request):
     if not request.user.is_authenticated:
         return redirect("home")
     communities = Community.objects.all().order_by('name')
-    return render(request, 'communities/communities.html', {'communities' : communities})
+    return render(request, 'communities/communities.html', {'communities': communities})
+
 
 def create_community(request):
     if not request.user.is_authenticated:
         return redirect("home")
     new_community = Community()
-    
+
     if request.method == "POST":
-        name =  request.POST.get('name')
+        name = request.POST.get('name')
         about = request.POST.get('about')
         new_community = Community(name=name, about=about, member_count=0)
         form = CreateCommunityForm(request.POST, instance=new_community)
         if form.is_valid():
             form.save()
-            creator_role = Usercommunity(user_id = get_user_id_from_auth_id(request.user.id), community_id=new_community.community_id, role="Owner")
+            creator_role = Usercommunity(user_id=get_user_id_from_auth_id(request.user.id),
+                                         community_id=new_community.community_id, role="Owner")
             creator_role.save()
             return redirect('community_home', community_name=name)
     else:
         form = CreateCommunityForm(instance=new_community)
-    return render(request, 'communities/create_community.html', {'form' : form})
+    return render(request, 'communities/create_community.html', {'form': form})
+
 
 def community_posts(request, community_name):
     if not request.user.is_authenticated:
         return redirect("home")
-    
+
     community = get_object_or_404(Community, name=community_name)
-    
+
     posts = Posts.objects.filter(community=community).order_by('-creation_date')
-    
+
     return render(request, 'communities/community_home.html', {
         'community': community,
         'posts': posts
     })
 
+
 def create_post(request, community_name):
     if not request.user.is_authenticated:
         return redirect("home")
-    
+
     appuser_id = get_user_id_from_auth_id(request.user.id)
     appuser = get_object_or_404(Appuser, pk=appuser_id)
     community = get_object_or_404(Community, name=community_name)
@@ -99,10 +108,12 @@ def create_post(request, community_name):
 
     return render(request, "posts/create_post.html", {"community": community})
 
+
 def post_detail(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
     post = get_object_or_404(Posts, post_id=post_id, community=community)
 
+    # owner check
     is_owner = False
     if request.user.is_authenticated:
         try:
@@ -111,37 +122,39 @@ def post_detail(request, community_name, post_id):
                 is_owner = True
         except Appuser.DoesNotExist:
             pass
-    
-    upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
-    downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
-    post.score = upvotes - downvotes
 
+    # recalc post score
+    up = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
+    dn = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
+    post.score = up - dn
+
+    # annotate comments with persistent vote counts
     comments = (
         Comment.objects
         .filter(post=post)
         .select_related("user")
+        .prefetch_related("comment_set__user")
         .annotate(
-            upvotes_count=Count("commentinteraction",
-                                filter=Q(commentinteraction__interaction_type="upvote")),
-            downvotes_count=Count("commentinteraction",
-                                  filter=Q(commentinteraction__interaction_type="downvote")),
+            upvotes_count=Count(
+                "commentinteraction",
+                filter=Q(commentinteraction__interaction_type="upvote")
+            ),
+            downvotes_count=Count(
+                "commentinteraction",
+                filter=Q(commentinteraction__interaction_type="downvote")
+            ),
         )
         .annotate(
             score=ExpressionWrapper(
                 F("upvotes_count") - F("downvotes_count"),
-                output_field=IntegerField(),  # ← INSTANCE, not class
+                output_field=IntegerField(),
             )
         )
-        .order_by("creation_date")
+        .order_by("-score")
     )
+
+    # only top‐level in the template
     root_comments = [c for c in comments if c.reply_to_comment_id is None]
-    context = {
-        "post": post,
-        "community": community,
-        "is_owner": is_owner,
-        "comments": comments,
-        "comment_form": CommentCreateForm(),
-    }
 
     return render(
         request,
@@ -154,6 +167,7 @@ def post_detail(request, community_name, post_id):
             "comment_form": CommentCreateForm(),
         },
     )
+
 
 def delete_post(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
@@ -172,12 +186,13 @@ def delete_post(request, community_name, post_id):
     messages.error(request, "You are not authorized to delete this post.")
     return redirect('post_detail', community_name=community_name, post_id=post_id)
 
+
 def community_home(request, community_name):
     community = get_object_or_404(Community, name=community_name)
     appuser = Appuser.objects.get(auth_id=request.user.id)
 
     community_interaction = Usercommunity.objects.filter(
-        community_id=community.community_id, 
+        community_id=community.community_id,
         user_id=appuser.user_id
     )
     joined = True if community_interaction else False
@@ -186,19 +201,19 @@ def community_home(request, community_name):
         if joined:
             if community_interaction[0].role == "Owner":
                 messages.error(
-                    request, 
+                    request,
                     "Cannot leave a community you own. Designate ownership to another member before leaving."
                 )
                 return render(request, 'communities/community_home.html', {
-                    'community': community, 
+                    'community': community,
                     'joined': joined,
                     'posts': []
                 })
             community_interaction[0].delete()
         else:
             Usercommunity.objects.create(
-                user_id=appuser.user_id, 
-                community_id=community.community_id, 
+                user_id=appuser.user_id,
+                community_id=community.community_id,
                 role="Member"
             )
         return redirect('community_home', community_name=community_name)
@@ -216,14 +231,16 @@ def community_home(request, community_name):
         'posts': posts
     })
 
+
 def profile(request):
     user = request.user
     if user.is_authenticated:
         username = user.username
         appuser = Appuser.objects.get(username=username)
-        return render(request, 'profile/profile.html', {'user_profile' : appuser})
+        return render(request, 'profile/profile.html', {'user_profile': appuser})
     else:
         return redirect("home")
+
 
 def edit_profile(request):
     if not request.user.is_authenticated:
@@ -240,7 +257,8 @@ def edit_profile(request):
     else:
         form = ProfileEditForm(instance=appuser)
 
-    return render(request, 'profile/edit_profile.html', {'user_profile' : appuser, 'form' : form})
+    return render(request, 'profile/edit_profile.html', {'user_profile': appuser, 'form': form})
+
 
 def get_vote_counts(post_id):
     upvotes = PostInteraction.objects.filter(
@@ -259,6 +277,7 @@ def get_vote_counts(post_id):
         'score': upvotes - downvotes
     }
 
+
 def handle_vote(user, post, vote_type):
     try:
         obj, created = PostInteraction.objects.update_or_create(
@@ -269,6 +288,7 @@ def handle_vote(user, post, vote_type):
         return "Vote updated" if not created else "Vote recorded"
     except IntegrityError:
         return "Vote failed"
+
 
 def vote_post(request, post_id):
     if request.method == "POST" and request.user.is_authenticated:
@@ -283,20 +303,22 @@ def vote_post(request, post_id):
 
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
+
 @login_required
 def add_comment(request, post_id, parent_id=None):
     post = get_object_or_404(Posts, pk=post_id)
     parent = get_object_or_404(Comment, pk=parent_id) if parent_id else None
+    appuser_id = get_user_id_from_auth_id(request.user.id)
 
     if request.method == "POST":
         form = CommentCreateForm(request.POST)
         if form.is_valid():
             comment = form.save(commit=False)
-            comment.author_id = request.user.id
+            comment.user_id = appuser_id
             comment.post = post
             comment.reply_to_comment = parent
-            comment.creation_date = timezone.now()   # ensure timestamp
-            comment.upvotes = 0                      # initialise counts
+            comment.creation_date = timezone.now()  # ensure timestamp
+            comment.upvotes = 0  # initialise counts
             comment.downvotes = 0
             comment.save()
             return redirect("post_detail",
@@ -311,8 +333,9 @@ def add_comment(request, post_id, parent_id=None):
 
 @login_required
 def edit_comment(request, comment_id):
+    appuser_id = get_user_id_from_auth_id(request.user.id)
     comment = get_object_or_404(
-        Comment, pk=comment_id, author_id=request.user.id
+        Comment, pk=comment_id, user_id=appuser_id
     )
 
     community = comment.post.community
@@ -334,8 +357,9 @@ def edit_comment(request, comment_id):
 
 @login_required
 def delete_comment(request, comment_id):
+    appuser_id = get_user_id_from_auth_id(request.user.id)
     comment = get_object_or_404(
-        Comment, pk=comment_id, author_id=request.user.id
+        Comment, pk=comment_id, user_id=appuser_id
     )
     post_id = comment.post_id
     community = comment.post.community
@@ -367,8 +391,12 @@ def vote_comment(request, comment_id, direction):
         defaults={"interaction_type": interaction_type},
     )
 
-    up = CommentInteraction.objects.filter(comment=comment, interaction_type="upvote").count()
-    dn = CommentInteraction.objects.filter(comment=comment, interaction_type="downvote").count()
+    up = CommentInteraction.objects.filter(
+        comment=comment, interaction_type="upvote"
+    ).count()
+    dn = CommentInteraction.objects.filter(
+        comment=comment, interaction_type="downvote"
+    ).count()
     Comment.objects.filter(pk=comment.pk).update(upvotes=up, downvotes=dn)
 
     html = render_to_string("posts/partials/comment_score.html", {
