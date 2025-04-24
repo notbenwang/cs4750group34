@@ -3,8 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Q, F
 from django.db.models import ExpressionWrapper, IntegerField
 from django.db import IntegrityError
-from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
-from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
+from db_project.forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
+from db_project.models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
 from django.utils import timezone
 from django.contrib import messages
 from datetime import datetime
@@ -34,6 +34,7 @@ def moderator_required(view_func):
         return view_func(request, community_name, *args, **kwargs)
 
     return wrapper
+
 
 
 def get_user_id_from_auth_id(user_id):
@@ -115,13 +116,22 @@ def post_detail(request, community_name, post_id):
 
     # owner check
     is_owner = False
+    user_vote = None
+
     if request.user.is_authenticated:
         try:
             app_user = Appuser.objects.get(auth_id=request.user.id)
+
             if app_user.user_id == post.user_id:
                 is_owner = True
+
+            interaction = PostInteraction.objects.filter(user=app_user, post=post).first()
+            if interaction:
+                user_vote = interaction.interaction_type
+
         except Appuser.DoesNotExist:
             pass
+
 
     # recalc post score
     up = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
@@ -167,6 +177,7 @@ def post_detail(request, community_name, post_id):
             "comment_form": CommentCreateForm(),
         },
     )
+
 
 
 def delete_post(request, community_name, post_id):
@@ -223,6 +234,7 @@ def community_home(request, community_name):
     for post in posts:
         upvotes = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
         downvotes = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
+        
         post.score = upvotes - downvotes
 
     return render(request, 'communities/community_home.html', {
@@ -294,6 +306,18 @@ def vote_post(request, post_id):
     if request.method == "POST" and request.user.is_authenticated:
         vote_type = request.POST.get("vote_type")
         post = get_object_or_404(Posts, pk=post_id)
+        app_user = get_object_or_404(Appuser, auth_id=request.user.id)
+
+        interaction = PostInteraction.objects.filter(user=app_user, post=post).first()
+        if interaction:
+            if interaction.interaction_type == vote_type:
+                interaction.delete()  # remove vote
+            else:
+                interaction.interaction_type = vote_type
+                interaction.save()
+        else:
+            PostInteraction.objects.create(user=app_user, post=post, interaction_type=vote_type)
+
 
         PostInteraction.objects.update_or_create(
             user=Appuser.objects.get(auth_id=request.user.id),
@@ -404,3 +428,4 @@ def vote_comment(request, comment_id, direction):
         "comment_id": comment.comment_id
     })
     return HttpResponse(html)
+
