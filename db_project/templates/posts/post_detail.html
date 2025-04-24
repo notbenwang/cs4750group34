@@ -14,7 +14,10 @@
 
 <p>{{ post.content }}</p>
 <small>Posted on: {{ post.creation_date }}</small>
-
+{% if is_owner %}
+    <small>
+        <a href="{% url 'edit_post' community.name post.post_id %}">Edit Post</a>
+    </small>
 <div class="vote-box">
     <form method="post" action="{% url 'vote' post_id=post.post_id %}">
         {% csrf_token %}
@@ -48,8 +51,7 @@
     <p>No comments yet — be the first!</p>
 {% endfor %}
 
-{% if is_owner %}
-    <a href="{% url 'edit_post' community.name post.post_id %}">Edit</a>
+
 
 <hr>
 <form method="post"
