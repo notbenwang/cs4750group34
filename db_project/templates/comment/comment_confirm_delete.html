@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Comment{% endblock %}
+
+{% block content %}
+<article class="delete-panel">
+  <h2>Delete comment?</h2>
+
+  <blockquote class="comment-excerpt">
+    {{ comment.content|linebreaks }}
+  </blockquote>
+
+  <p>This action can’t be undone.</p>
+
+  <form method="post" class="delete-form">
+      {% csrf_token %}
+      <button type="submit" class="btn danger">Yes, delete</button>
+      <a href="{% url 'post_detail' community_name=community.name post_id=comment.post_id %}" class="btn secondary">Cancel</a>
+  </form>
+</article>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .delete-panel      { max-width: 650px; margin: 0 auto; padding: 1rem; }
+  .comment-excerpt   { background: #fafafa; padding: .75rem; border-left: 4px solid #f87171; margin: .5rem 0 1rem 0; }
+  .delete-form       { display: flex; gap: .5rem; }
+  .btn               { padding: .4rem .9rem; border: 1px solid #888; border-radius: 4px; cursor: pointer; background: #f1f1f1; }
+  .btn:hover         { background: #e7e7e7; }
+  .danger            { background: #ef4444; border-color: #dc2626; color: #fff; }
+  .danger:hover      { background: #dc2626; }
+</style>
+{% endblock %}

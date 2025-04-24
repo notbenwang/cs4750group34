@@ -1,0 +1,36 @@
+{% load comment_tree tz %}
+
+<div class="comment" style="margin-left:{{ depth }}rem;">
+    <p><small>{{comment.score}} - </small>{{comment.content}}</p>
+
+    <small>
+
+        {% timezone "US/Eastern" %}
+        {{ comment.creation_date|date:"M d Y g:i A" }}
+    {% endtimezone %}
+    · <span id="score-{{ comment.comment_id }}">{{ comment.upvotes|default_if_none:0|add:"-"|add:comment.downvotes|default_if_none:0 }}</span>
+
+        ·
+        <button hx-post="{% url 'vote_comment' comment.comment_id 'up' %}"
+                hx-headers='{"X-CSRFToken":"{{ csrf_token }}"}'
+                hx-target="#score-{{ comment.comment_id }}"
+                hx-swap="outerHTML"
+                class="vote-button">▲</button>
+
+        <button hx-post="{% url 'vote_comment' comment.comment_id 'down' %}"
+                hx-headers='{"X-CSRFToken":"{{ csrf_token }}"}'
+                hx-target="#score-{{ comment.comment_id }}"
+                hx-swap="outerHTML"
+                class="vote-button">▼</button>
+
+        {% if comment.user.auth_id == request.user.id %}
+            · <a href="{% url 'edit_comment' comment.comment_id %}">edit</a>
+            · <a href="{% url 'delete_comment' comment.comment_id %}">delete</a>
+        {% endif %}
+        · <a href="{% url 'reply_comment' comment.post_id comment.comment_id %}">reply</a>
+    </small>
+</div>
+
+{% for child in comment.comment_set.all %}
+    {% render_comment child depth|add:"2" %}
+{% endfor %}
