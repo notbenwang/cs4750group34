@@ -2,29 +2,23 @@
     {{community.name}} | Roles
 </h1>
 
-Owner: "{{owner.user__username}}, {{owner.user_id}}"
+Owner: {{owner.user__username}}
 
-<br/>
-
-<h4>Moderators</h4>
-{% if mods %}
-<li>
-    {% for mod in mods %}
-    {% endfor %}
-</li>
-{% else %}
-<li>No mods in this community.</li>
-{% endif %}
 
 <h4>Member List</h4>
 {% if members %}
-<form method="POST" action="">
-<li>
+<form method="POST" action="{% url 'edit_mods' community_name=community.name %}">
+    {% csrf_token %}
+
     {% for member in members %}
+    
     {{ member.user__username }}
-    <input type="checkbox" name="make_mod{{member.user_id}}" {% if member.role == "Moderator" %}checked{% endif %}> Moderator
+    <input type="checkbox" name="is_{{member.user_id}}_mod" 
+                                {% if member.role == "Moderator" or member.role == "Owner" %}checked{% endif %}
+                                {% if member.user_id == app_id %}disabled{% endif %}> Moderator
+    <br/>
     {% endfor %}
-</li>
+
 
 {% else %} <p>
     No members besides you.
