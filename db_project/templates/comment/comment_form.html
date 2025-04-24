@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if editing %}Edit Comment{% else %}New Comment{% endif %}
+{% endblock %}
+
+{% block content %}
+<article class="comment-panel">
+  <h2>
+    {% if editing %}Edit your comment{% else %}Add a comment{% endif %}
+  </h2>
+
+  <form method="post" class="comment-form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <label for="id_content"><strong>Comment</strong></label><br>
+      {{ form.content }}<br>
+      {{ form.content.errors }}
+      <div class="actions">
+          <button type="submit" class="btn primary">
+              {% if editing %}Save{% else %}Post{% endif %}
+          </button>
+          <a href="{% url 'post_detail' community.name post.post_id %}" class="btn secondary">Cancel</a>
+      </div>
+  </form>
+</article>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .comment-panel     { max-width: 650px; margin: 0 auto; padding: 1rem; }
+  .comment-form textarea { width: 100%; min-height: 7rem; resize: vertical; }
+  .actions           { margin-top: .75rem; display: flex; gap: .5rem; }
+  .btn               { padding: .4rem .9rem; border: 1px solid #888; border-radius: 4px; cursor: pointer; background: #f1f1f1; }
+  .btn:hover         { background: #e7e7e7; }
+  .primary           { background: #3b82f6; border-color: #2563eb; color: #fff; }
+  .primary:hover     { background: #2563eb; }
+</style>
+{% endblock %}
