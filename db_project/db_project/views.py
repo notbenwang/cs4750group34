@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Count, Q, F
 from django.db.models import ExpressionWrapper, IntegerField
 from django.db import IntegrityError
-from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm
+from .forms import ProfileEditForm, CreateCommunityForm, CommentCreateForm, CommentEditForm, PostEditForm
 from .models import Community, Posts, Appuser, Usercommunity, PostInteraction, Comment, CommentInteraction
 from django.utils import timezone
 from django.contrib import messages
@@ -404,3 +404,25 @@ def vote_comment(request, comment_id, direction):
         "comment_id": comment.comment_id
     })
     return HttpResponse(html)
+
+@login_required
+def edit_post(request, community_name, post_id):
+    post = get_object_or_404(Posts, post_id=post_id)
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+
+    if post.user_id != appuser_id:
+        return HttpResponseForbidden("You do not have permission to edit this post.")
+
+    if request.method == "POST":
+        form = PostEditForm(request.POST, instance=post)
+        if form.is_valid():
+            form.save()
+            return redirect("post_detail", community_name=community_name, post_id=post_id)
+    else:
+        form = PostEditForm(instance=post)
+
+    return render(request, "posts/edit_post.html", {
+        "form": form,
+        "community_name": community_name,
+        "post": post,
+    })
