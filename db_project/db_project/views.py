@@ -215,12 +215,7 @@ def community_home(request, community_name):
                     request,
                     "Cannot leave a community you own. Designate ownership to another member before leaving."
                 )
-                return render(request, 'communities/community_home.html', {
-                    'community': community,
-                    'joined': joined,
-                    'role': role,
-                    'posts': []
-                })
+                return redirect(community_home, community_name=community_name)
             community_interaction[0].delete()
         else:
             Usercommunity.objects.create(
