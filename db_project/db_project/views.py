@@ -114,7 +114,6 @@ def post_detail(request, community_name, post_id):
     community = get_object_or_404(Community, name=community_name)
     post = get_object_or_404(Posts, post_id=post_id, community=community)
 
-    # owner check
     is_owner = False
     user_vote = None
 
@@ -133,12 +132,10 @@ def post_detail(request, community_name, post_id):
             pass
 
 
-    # recalc post score
     up = PostInteraction.objects.filter(post=post, interaction_type='upvote').count()
     dn = PostInteraction.objects.filter(post=post, interaction_type='downvote').count()
     post.score = up - dn
 
-    # annotate comments with persistent vote counts
     comments = (
         Comment.objects
         .filter(post=post)
@@ -162,7 +159,6 @@ def post_detail(request, community_name, post_id):
         )
     )
 
-    # Build a comment hierarchy
     comment_dict = {comment.comment_id: comment for comment in comments}
     root_comments = []
 
@@ -176,7 +172,6 @@ def post_detail(request, community_name, post_id):
                     parent.children = []
                 parent.children.append(comment)
 
-    # Sort root comments and their children by score
     root_comments.sort(key=lambda c: -c.score)
     for comment in comments:
         if hasattr(comment, 'children'):
@@ -389,8 +384,8 @@ def add_comment(request, post_id, parent_id=None):
             comment.user_id = appuser_id
             comment.post = post
             comment.reply_to_comment = parent
-            comment.creation_date = timezone.now()  # ensure timestamp
-            comment.upvotes = 0  # initialise counts
+            comment.creation_date = timezone.now()
+            comment.upvotes = 0
             comment.downvotes = 0
             comment.save()
             return redirect("post_detail",

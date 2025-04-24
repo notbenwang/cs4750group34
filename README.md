@@ -4,7 +4,6 @@ Group Members:
 * Benjamin Wang (hgf3jq)
 * Conroy Lee (mtg9ny)
 * Mohit Mainali (fys3bq)
-* 
 
 ## Setting Up Project
 1) Clone git repository onto your local machine.
