@@ -14,7 +14,11 @@
 
 <p>{{ post.content }}</p>
 <small>Posted on: {{ post.creation_date }}</small>
-
+{% if is_owner %}
+    <small>
+        <a href="{% url 'edit_post' community.name post.post_id %}">Edit Post</a>
+    </small>
+{% endif %}
 <div class="vote-box">
     <form method="post" action="{% url 'vote' post_id=post.post_id %}">
         {% csrf_token %}
@@ -23,6 +27,7 @@
         <button name="vote_type" value="downvote" type="submit">⬇️</button>
     </form>
 </div>
+
 
 {% if request.user.is_authenticated %}
 <hr>
@@ -47,6 +52,7 @@
 {% empty %}
     <p>No comments yet — be the first!</p>
 {% endfor %}
+
 
 {% if is_owner %}
 <hr>
