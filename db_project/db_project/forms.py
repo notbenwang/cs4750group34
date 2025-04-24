@@ -1,5 +1,5 @@
 from django import forms
-from .models import Appuser, Community, Comment
+from .models import Appuser, Community, Comment, Posts
 import re
 
 class ProfileEditForm(forms.ModelForm):
@@ -32,3 +32,8 @@ class CommentEditForm(forms.ModelForm):
             "content": forms.Textarea(attrs={"rows": 4})
         }
         labels = {"content": "Edit your comment"}
+
+class PostEditForm(forms.ModelForm):
+    class Meta:
+        model = Posts
+        fields = ['title', 'content']

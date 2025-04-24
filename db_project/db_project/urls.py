@@ -20,7 +20,8 @@ from django.views.generic.base import TemplateView
 from db_project.views import (community_list, community_home, profile, edit_profile,
                               create_community, create_post, post_detail, delete_post, 
                               vote_post, add_comment, edit_comment, delete_comment, vote_comment,
-                              community_role_edit, edit_mods)
+                              community_role_edit, edit_post, edit_mods)
+
 
 
 urlpatterns = [ 
@@ -55,4 +56,5 @@ urlpatterns = [
         vote_comment,
         name="vote_comment",
     ),
+    path('communities/<str:community_name>/<int:post_id>/edit/', edit_post, name='edit_post'),
 ]
