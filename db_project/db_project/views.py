@@ -207,7 +207,7 @@ def community_home(request, community_name):
         user_id=appuser.user_id
     )
     joined = True if community_interaction else False
-
+    role = "Visitor" if not community_interaction else community_interaction[0].role
     if request.method == "POST":
         if joined:
             if community_interaction[0].role == "Owner":
@@ -218,6 +218,7 @@ def community_home(request, community_name):
                 return render(request, 'communities/community_home.html', {
                     'community': community,
                     'joined': joined,
+                    'role': role,
                     'posts': []
                 })
             community_interaction[0].delete()
@@ -240,8 +241,44 @@ def community_home(request, community_name):
     return render(request, 'communities/community_home.html', {
         'community': community,
         'joined': joined,
-        'posts': posts
+        'posts': posts,
+        'role': role
     })
+
+def community_role_edit(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    community_id = Community.objects.get(name=community_name)
+    usercommunity = Usercommunity.objects.filter(user_id=appuser_id, community_id=community_id)
+    if not usercommunity or usercommunity[0].role != "Owner":
+        return redirect(community_home, community_name=community_name)
+    # get all members of community
+    members = Usercommunity.objects.filter(community_id=community_id).select_related("user").values("role", "user_id", "user__username").order_by("user__username")
+    mods = members.filter(role="Moderator")
+    owner = members.filter(role="Owner")[0]
+    return render(request, 'communities/edit_roles.html', {'members': members, "owner": owner, "mods": mods, "community":community_id, "app_id": appuser_id})
+
+def edit_mods(request, community_name):
+    if not request.user.is_authenticated:
+        return redirect("home")
+    appuser_id = get_user_id_from_auth_id(request.user.id)
+    community_id = Community.objects.get(name=community_name)
+    usercommunity = Usercommunity.objects.filter(user_id=appuser_id, community_id=community_id)
+    if not usercommunity or usercommunity[0].role != "Owner":
+        return redirect(community_home, community_name=community_name)
+    if request.method == 'POST':
+        members = Usercommunity.objects.filter(community_id=community_id).select_related("user")
+        for member in members:
+            post_name=f"is_{member.user_id}_mod"
+            if post_name in request.POST:
+                member.role = "Moderator"
+            else:
+                if member.role != "Owner":
+                    member.role = "Member"
+            member.save()
+        return redirect(community_role_edit, community_name=community_name)
+    return redirect(community_home, community_name=community_name)
 
 
 def profile(request):

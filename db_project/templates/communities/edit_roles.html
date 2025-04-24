@@ -1,0 +1,30 @@
+<h1>
+    {{community.name}} | Roles
+</h1>
+
+Owner: {{owner.user__username}}
+
+
+<h4>Member List</h4>
+{% if members %}
+<form method="POST" action="{% url 'edit_mods' community_name=community.name %}">
+    {% csrf_token %}
+
+    {% for member in members %}
+    
+    {{ member.user__username }}
+    <input type="checkbox" name="is_{{member.user_id}}_mod" 
+                                {% if member.role == "Moderator" or member.role == "Owner" %}checked{% endif %}
+                                {% if member.user_id == app_id %}disabled{% endif %}> Moderator
+    <br/>
+    {% endfor %}
+
+
+{% else %} <p>
+    No members besides you.
+</p>
+{% endif %}
+<button type="submit">Save Changes</button>
+</form>
+<br/><br/>
+<a href="{% url 'community_home' community_name=community.name %}">Back</a>

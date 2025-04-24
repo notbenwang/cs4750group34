@@ -14,6 +14,12 @@
   <button type="submit">Join Community</button>
   {% endif %}
 </form>
+
+
+{% if role == "Owner" %}
+<a href="{% url 'edit_roles' community_name=community.name %}">Edit Community Roles</a> <br/>
+{% endif %}
+Your Role: {{role}}
 <p>
   Member Count: {{community.member_count}}
 </p>
