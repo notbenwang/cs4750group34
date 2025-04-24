@@ -143,7 +143,7 @@ def post_detail(request, community_name, post_id):
         Comment.objects
         .filter(post=post)
         .select_related("user")
-        .prefetch_related("comment_set__user")
+        .prefetch_related("comment_set")
         .annotate(
             upvotes_count=Count(
                 "commentinteraction",
@@ -160,11 +160,27 @@ def post_detail(request, community_name, post_id):
                 output_field=IntegerField(),
             )
         )
-        .order_by("-score")
     )
 
-    # only top‐level in the template
-    root_comments = [c for c in comments if c.reply_to_comment_id is None]
+    # Build a comment hierarchy
+    comment_dict = {comment.comment_id: comment for comment in comments}
+    root_comments = []
+
+    for comment in comments:
+        if comment.reply_to_comment_id is None:
+            root_comments.append(comment)
+        else:
+            parent = comment_dict.get(comment.reply_to_comment_id)
+            if parent:
+                if not hasattr(parent, 'children'):
+                    parent.children = []
+                parent.children.append(comment)
+
+    # Sort root comments and their children by score
+    root_comments.sort(key=lambda c: -c.score)
+    for comment in comments:
+        if hasattr(comment, 'children'):
+            comment.children.sort(key=lambda c: -c.score)
 
     return render(
         request,
