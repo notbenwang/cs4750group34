@@ -1,1 +1,36 @@
-Hello World
+<h1>
+    {{community.name}} | Roles
+</h1>
+
+Owner: "{{owner.user__username}}, {{owner.user_id}}"
+
+<br/>
+
+<h4>Moderators</h4>
+{% if mods %}
+<li>
+    {% for mod in mods %}
+    {% endfor %}
+</li>
+{% else %}
+<li>No mods in this community.</li>
+{% endif %}
+
+<h4>Member List</h4>
+{% if members %}
+<form method="POST" action="">
+<li>
+    {% for member in members %}
+    {{ member.user__username }}
+    <input type="checkbox" name="make_mod{{member.user_id}}" {% if member.role == "Moderator" %}checked{% endif %}> Moderator
+    {% endfor %}
+</li>
+
+{% else %} <p>
+    No members besides you.
+</p>
+{% endif %}
+<button type="submit">Save Changes</button>
+</form>
+<br/><br/>
+<a href="{% url 'community_home' community_name=community.name %}">Back</a>

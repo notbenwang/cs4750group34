@@ -220,8 +220,15 @@ def community_role_edit(request, community_name):
     usercommunity = Usercommunity.objects.filter(user_id=appuser_id, community_id=community_id)
     if not usercommunity or usercommunity[0].role != "Owner":
         return redirect(community_home, community_name=community_name)
-    
-    return render(request, 'communities/edit_roles.html')
+    # get all members of community
+    members = Usercommunity.objects.filter(community_id=community_id).select_related("user").values("role", "user_id", "user__username")
+    mods = members.filter(role="Moderator")
+    owner = members.filter(role="Owner")[0]
+    members = members.filter(role="Member")
+
+    return render(request, 'communities/edit_roles.html', {'members': members, "owner": owner, "mods": mods, "community":community_id})
+
+
 def profile(request):
     user = request.user
     if user.is_authenticated:
